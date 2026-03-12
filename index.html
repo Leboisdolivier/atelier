@@ -2127,7 +2127,11 @@ function renderClients(){
   empty.style.display='none';
   state.clients.forEach(cl=>{
     const dvs=(state.devis||[]).filter(d=>d.clientId===cl.id);
-    const totalAchats=dvs.filter(d=>d.status==='accepte').reduce((s,d)=>{const sub=(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0);return s+sub*(1+(d.marginPct||0)/100);},0);
+    const dvAccepted=dvs.filter(d=>d.status==='accepte'||d.status==='facture');
+    const devisTotal=dvAccepted.reduce((s,d)=>{const base=(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0);return s+base*(1+(d.tvaPct||0)/100);},0);
+    const txTotal=(cl.transactions||[]).reduce((s,t)=>s+(t.amount||0),0);
+    const totalCA=devisTotal+txTotal;
+    const totalCmd=dvAccepted.length+(cl.transactions||[]).length;
     const card=document.createElement('div');card.className='client-card';card.onclick=()=>openClient(cl.id);
     const platforms=[];
     if(cl.insta)platforms.push(`<span class="client-badge badge-insta">${cl.instaFollow==='oui'?'✓ ':''} ${esc(cl.insta)}</span>`);
@@ -2138,7 +2142,8 @@ function renderClients(){
       <div class="client-card-loc">${esc(cl.addr||'—')}</div>
       <div class="client-card-stats">
         <div class="stat"><div class="stat-val">${dvs.length}</div><div class="stat-label">Devis</div></div>
-        <div class="stat"><div class="stat-val">${fmtEur(totalAchats)}</div><div class="stat-label">Achats</div></div>
+        <div class="stat"><div class="stat-val">${totalCmd}</div><div class="stat-label">Commandes</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--green)">${fmtEur(totalCA)}</div><div class="stat-label">CA total</div></div>
       </div>
       ${platforms.length?'<div style="margin-top:9px;display:flex;flex-wrap:wrap;gap:4px;">'+platforms.join('')+'</div>':''}`;
     grid.appendChild(card);
