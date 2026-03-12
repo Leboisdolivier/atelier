@@ -565,6 +565,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
   .settings-grid{grid-template-columns:1fr;}
 }
 </style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -2397,6 +2398,8 @@ function resetScanner(){
 // ==================== GOOGLE DRIVE BACKUP ====================
 // Uses Google Identity Services (OAuth2 implicit flow) — no server needed
 const GDRIVE_FOLDER_NAME = "Le bois d\'Olivier — Atelier";
+const GDRIVE_CLIENT_ID = "94781310672-dggo8f2fehvufhlcaipe06ao20l8t7a6.apps.googleusercontent.com";
+const GDRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const BACKUP_FILENAME = "lbdo_atelier_backup.json";
 let _driveToken = null;
 let _driveFolderId = null;
@@ -2431,68 +2434,43 @@ function backupAction(){
   else connectGoogleDrive();
 }
 
-// ---- OAuth2 via Google Identity popup ----
+// ---- OAuth2 via popup (implicit flow) ----
 function connectGoogleDrive(){
   setBackupUI('loading','Connexion Google Drive…');
-  // Use Google OAuth2 implicit flow
-  const CLIENT_ID = ''; // Will be set by tokenClient approach
-  // We use google.accounts.oauth2 if available, else fall back to direct fetch with token prompt
-  // Since we can't embed a real OAuth client ID here, we use a manual token approach'
-  // Ask user to provide their OAuth token or use a simplified approach
-  _initGoogleAuth();
-}
+  const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
+    + '?client_id=94781310672-dggo8f2fehvufhlcaipe06ao20l8t7a6.apps.googleusercontent.com'
+    + '&redirect_uri=' + encodeURIComponent('https://leboisdolivier.github.io/atelier/')
+    + '&response_type=token'
+    + '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/drive.file')
+    + '&prompt=consent';
 
-function _initGoogleAuth(){
-  // Load Google Identity Services
-  if(window.google && window.google.accounts){
-    _startGoogleOAuth();
-    return;
-  }
-  const script = document.createElement('script');
-  script.src = 'https://accounts.google.com/gsi/client';
-  script.onload = _startGoogleOAuth;
-  script.onerror = ()=>{
-    // Fallback: manual token entry
-    _manualTokenEntry();
-  };
-  document.head.appendChild(script);
-}
-
-function _manualTokenEntry(){
-  const token = prompt(
-    "Pour connecter Google Drive, suivez ces étapes :\n\n" +
-    "1. Ouvrez ce lien dans un nouvel onglet :\nhttps://accounts.google.com/o/oauth2/v2/auth?client_id=857483267079-k7t7gfq11m6hk1ob0k9o2n9jskjmqf0h.apps.googleusercontent.com&redirect_uri=https://claude.ai&response_type=token&scope=https://www.googleapis.com/auth/drive.file\n\n" +
-    "2. Autorisez l'accès\n3. Copiez le token depuis l'URL (après access_token=, jusqu'au &)\n4. Collez-le ici :"
-  );
-  if(token && token.trim()){
-    _driveToken = token.trim();
-    _backupConnected = true;
-    _initDriveFolder();
-  } else {
-    setBackupUI('idle');
-  }
-}
-
-function _startGoogleOAuth(){
-  try{
-    const tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: '857483267079-k7t7gfq11m6hk1ob0k9o2n9jskjmqf0h.apps.googleusercontent.com',
-      scope: 'https://www.googleapis.com/auth/drive.file',
-      callback: (resp)=>{
-        if(resp.access_token){
-          _driveToken = resp.access_token;
+  // Open popup
+  const popup = window.open(authUrl, 'google_oauth', 'width=500,height=600,left=200,top=100');
+  
+  // Poll for token in redirect URL
+  const poll = setInterval(() => {
+    try {
+      if(!popup || popup.closed){
+        clearInterval(poll);
+        setBackupUI('idle');
+        return;
+      }
+      const url = popup.location.href;
+      if(url && url.includes('access_token=')){
+        clearInterval(poll);
+        popup.close();
+        const token = new URLSearchParams(url.split('#')[1]).get('access_token');
+        if(token){
+          _driveToken = token;
           _backupConnected = true;
+          sessionStorage.setItem('lbdo_drive_token', token);
           _initDriveFolder();
-        } else {
-          setBackupUI('error','Connexion annulée');
         }
-      },
-      error_callback: (e)=>{ setBackupUI('error','Erreur OAuth : '+e.type); }
-    });
-    tokenClient.requestAccessToken({prompt:'consent'});
-  }catch(e){
-    _manualTokenEntry();
-  }
+      }
+    } catch(e) {
+      // Cross-origin - still waiting for redirect
+    }
+  }, 500);
 }
 
 // ---- Drive folder + file management ----
@@ -2634,6 +2612,23 @@ async function manualBackup(){
 
 // Try to restore session token on load
 function _tryRestoreSession(){
+  // Check if Google redirected back with a token in the URL hash
+  try{
+    const hash = window.location.hash;
+    if(hash && hash.includes('access_token=')){
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get('access_token');
+      if(token){
+        _driveToken = token;
+        _backupConnected = true;
+        // Clean the URL
+        history.replaceState(null, '', location.pathname);
+        _initDriveFolder();
+        return;
+      }
+    }
+  }catch(e){}
+  // Check session storage
   try{
     const token = sessionStorage.getItem('lbdo_drive_token');
     if(token){
