@@ -927,6 +927,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
   <div class="page-header"><h1>Clients</h1><p>// carnet d'adresses & suivi commercial</p></div>
   <div style="margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;">
     <button class="btn btn-primary" onclick="openNewClient()">＋ Nouveau client</button>
+    <button class="btn btn-ghost" onclick="exportClientsExcel()">📊 Export Excel</button>
     <button class="btn btn-ghost" onclick="document.getElementById('import-clients-file').click()">📥 Importer Excel / CSV</button>
     <input type="file" id="import-clients-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="importClientsFile(this)">
   </div>
@@ -1348,7 +1349,7 @@ async function loadState(){
   }catch(e){}
 }
 async function saveState(){
-  try{await window.storage.set('lbdo_atelier',JSON.stringify({projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[]}));}catch(e){}
+  try{await window.storage.set('lbdo_atelier',JSON.stringify({projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[]}));}catch(e){}
   // Debounced Drive backup (30s after last change)
   if(_backupConnected){
     clearTimeout(window._driveBackupDebounce);
@@ -3609,6 +3610,99 @@ async function duplicateProject(id) {
 async function duplicateCurrentProject() {
   const p = getCurrentProject();
   if (p) duplicateProject(p.id);
+}
+
+
+// ==================== EXPORT CLIENTS EXCEL ====================
+function exportClientsExcel() {
+  const clients = state.clients || [];
+  if (!clients.length) return alert('Aucun client à exporter.');
+
+  // Build CSV with BOM for Excel UTF-8 compatibility
+  const SEP = ';';
+  const rows = [];
+
+  // Header row
+  rows.push([
+    'Prénom', 'Nom', 'Adresse', 'Email', 'Téléphone',
+    'Instagram', 'Suivi Instagram', 'Vinted', 'Le Bon Coin', 'Etsy', 'Autre plateforme',
+    'CA Total (€)', 'Nb Commandes', 'Panier Moyen (€)', 'Dernier Achat',
+    'Nb Achats Historiques', 'Total Achats Historiques (€)',
+    'Notes'
+  ].join(SEP));
+
+  clients.forEach(cl => {
+    // Compute KPIs
+    const txs = cl.transactions || [];
+    const txTotal = txs.reduce((s, t) => s + (t.amount || 0), 0);
+    const txCount = txs.length;
+
+    const fullName = ((cl.firstname || '') + ' ' + (cl.lastname || '')).trim();
+    const devisClient = (state.devis || []).filter(d =>
+      d.clientId === cl.id || d.client === fullName
+    );
+    const devisAccepted = devisClient.filter(d => d.status === 'accepte' || d.status === 'facture');
+    const devisTotal = devisAccepted.reduce((s, d) => {
+      const base = (d.lignes || []).reduce((a, l) => a + (l.qty * l.price), 0);
+      return s + base + base * ((d.tvaPct || 0) / 100);
+    }, 0);
+
+    const totalCA = txTotal + devisTotal;
+    const totalCmd = txCount + devisAccepted.length;
+    const panier = totalCmd > 0 ? (totalCA / totalCmd).toFixed(2) : '0.00';
+
+    const allDates = [
+      ...txs.map(t => t.date),
+      ...devisAccepted.map(d => d.date)
+    ].filter(Boolean).sort().reverse();
+    const lastDate = allDates[0] ? new Date(allDates[0]).toLocaleDateString('fr-FR') : '';
+
+    const csvCell = v => '"' + String(v || '').replace(/"/g, '""') + '"';
+
+    rows.push([
+      csvCell(cl.firstname || ''),
+      csvCell(cl.lastname || ''),
+      csvCell(cl.addr || ''),
+      csvCell(cl.email || ''),
+      csvCell(cl.tel || ''),
+      csvCell(cl.insta || ''),
+      csvCell(cl.instaFollow === 'oui' ? 'Oui' : 'Non'),
+      csvCell(cl.vinted || ''),
+      csvCell(cl.lbc || ''),
+      csvCell(cl.etsy || ''),
+      csvCell(cl.otherPlatform || ''),
+      totalCA.toFixed(2).replace('.', ','),
+      totalCmd,
+      panier.replace('.', ','),
+      csvCell(lastDate),
+      txCount,
+      txTotal.toFixed(2).replace('.', ','),
+      csvCell(cl.notes || '')
+    ].join(SEP));
+
+    // Add transaction detail rows (indented)
+    txs.forEach(tx => {
+      rows.push([
+        '', '', '', '', '', '', '', '', '', '', '',
+        tx.amount ? tx.amount.toFixed(2).replace('.', ',') : '0,00',
+        '', '', '',
+        '1',
+        tx.amount ? tx.amount.toFixed(2).replace('.', ',') : '0,00',
+        csvCell((tx.date ? new Date(tx.date).toLocaleDateString('fr-FR') : '') + ' — ' + (tx.desc || '') + (tx.platform ? ' [' + (PLATFORM_LABELS[tx.platform] || tx.platform) + ']' : '') + (tx.notes ? ' (' + tx.notes + ')' : ''))
+      ].join(SEP));
+    });
+  });
+
+  // BOM + CSV content
+  const bom = '\uFEFF';
+  const csv = bom + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'clients_bois_olivier_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ==================== INIT ====================
