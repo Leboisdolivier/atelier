@@ -1339,6 +1339,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
 </div>
 
 <script>
+// Global error handler for mobile debugging
+window.onerror = function(msg, src, line, col, err) {
+  var d = document.getElementById('section-dashboard');
+  if (d) {
+    d.style.color = '#f0a830';
+    d.style.padding = '20px';
+    d.innerHTML = '<h2 style="color:#c0392b">Erreur JS</h2><pre style="font-size:11px;color:#e8dcc8;white-space:pre-wrap">' + msg + '\nLigne ' + line + '\n' + (err ? err.stack : '') + '</pre>';
+  }
+  return false;
+};
 // ==================== STATE ====================
 let state={projects:[],devis:[],settings:{},currentId:null,currentDevisId:null,editMode:false,calcShape:'rectangle'};
 
@@ -3726,7 +3736,7 @@ function exportClientsExcel() {
 }
 
 // ==================== INIT ====================
-(async()=>{
+document.addEventListener('DOMContentLoaded', async ()=>{
   await loadState();
   if(!state.devis)state.devis=[];if(!state.settings)state.settings={};if(!state.clients)state.clients=[];
   if(!state.stocks)state.stocks=[];if(!state.planning)state.planning=[];if(!state.resines)state.resines=[];
@@ -3737,7 +3747,8 @@ function exportClientsExcel() {
   setShape('rectangle');
   document.getElementById('time-date').value=new Date().toISOString().split('T')[0];
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});});
-})();
+  showSection('dashboard');
+});
 </script>
 
 <!-- NEW/EDIT CLIENT -->
