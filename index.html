@@ -35,7 +35,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:14px 3
 .nav-tab:hover{color:var(--text);}.nav-tab.active{background:var(--amber);color:#0f0d0a;font-weight:500;}
 
 main{max-width:1260px;margin:0 auto;padding:32px 36px;}
-/* section visibility handled in @media screen */
+
 .page-header{margin-bottom:32px;}
 .page-header h1{font-family:'Playfair Display',serif;font-size:36px;font-weight:700;line-height:1;margin-bottom:5px;}
 .page-header p{color:var(--text-dim);font-size:12px;font-family:'DM Mono',monospace;}
@@ -209,14 +209,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
   body,html{background:#fff!important;color:#000!important;}
   body::before{display:none!important;}
   nav,#print-toolbar,.modal-overlay{display:none!important;}
-  main > .section{display:none!important;}
+  main > .section:not(#section-print-preview){display:none!important;}
   main > #section-print-preview{display:block!important;}
   .print-no{display:none!important;}
   @page{margin:12mm 14mm 12mm 14mm;size:A4;}
-}
-@media screen{
-  .section{display:none;}
-  .section.active{display:block!important;}
 }
 #section-print-preview{display:none;}
 #section-print-preview.active{display:block;}
@@ -599,6 +595,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
   .projects-grid,.devis-grid{grid-template-columns:1fr;}
   .settings-grid{grid-template-columns:1fr;}
 }
+
+/* === SECTION VISIBILITY === */
+.section { display: none; }
+.section.active { display: block !important; }
+body main .section.active { display: block !important; }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
