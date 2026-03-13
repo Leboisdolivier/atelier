@@ -606,6 +606,35 @@ body main
 .section.active { display: block; }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyADvA_vv242iqAnzACUsGOT559UGfA2SO0",
+      authDomain: "lbdo-atelier.firebaseapp.com",
+      projectId: "lbdo-atelier",
+      storageBucket: "lbdo-atelier.firebasestorage.app",
+      messagingSenderId: "1098989820643",
+      appId: "1:1098989820643:web:00a07d6447b78869bf83d6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const STATE_DOC = doc(db, "atelier", "state");
+
+    // Expose to global scope
+    window._fbDb = db;
+    window._fbStateDoc = STATE_DOC;
+    window._fbSetDoc = setDoc;
+    window._fbGetDoc = getDoc;
+    window._fbOnSnapshot = onSnapshot;
+    window._fbReady = true;
+
+    // Notify main script that Firebase is ready
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
 </head>
 <body>
 <script>
@@ -646,9 +675,10 @@ window.addEventListener('unhandledrejection', function(e) {
 
 
 <div id="backup-bar">
-  <span class="backup-icon">☁️</span>
-  <span class="backup-label" id="backup-label">Connecter Google Drive</span>
-  <button class="backup-btn" id="backup-btn" onclick="backupAction()">Connecter</button>
+  <span class="backup-icon" id="backup-icon">☁️</span>
+  <span class="backup-label" id="backup-label">Firebase</span>
+  <span id="firebase-status" style="font-size:11px;color:#2ecc71;margin-left:6px;">● Synchronisé</span>
+  <button class="backup-btn" id="backup-btn" onclick="manualBackup()" style="display:none">💾</button>
 </div>
 
 <nav>
@@ -1123,6 +1153,8 @@ window.addEventListener('unhandledrejection', function(e) {
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <button class="btn btn-primary" onclick="saveSettings()">💾 Enregistrer les paramètres</button>
       <button class="btn btn-ghost" onclick="openRestoreBackup()">📥 Restaurer une sauvegarde</button>
+      <button class="btn btn-ghost" onclick="exportMobile()">📱 Exporter pour mobile</button>
+      <button class="btn btn-ghost" onclick="importFromDrive()">☁️ Importer depuis Drive</button>
     </div><!-- /params-pane-entreprise -->
 
     <!-- CATALOGUE RÉSINES PANE -->
@@ -1397,12 +1429,24 @@ window.onerror = function(msg, src, line, col, err) {
 let state={projects:[],devis:[],settings:{},currentId:null,currentDevisId:null,editMode:false,calcShape:'rectangle'};
 
 async function loadState(){
-  // Try localStorage first (works on GitHub Pages, mobile, everywhere)
+  // 1. Try Firebase first (primary - works everywhere, sync across devices)
+  try{
+    if(window._fbStateDoc && window._fbGetDoc){
+      const snap = await window._fbGetDoc(window._fbStateDoc);
+      if(snap.exists()){
+        Object.assign(state, snap.data());
+        // Also update localStorage as cache
+        try{localStorage.setItem('lbdo_atelier', JSON.stringify(snap.data()));}catch(e){}
+        return;
+      }
+    }
+  }catch(e){console.warn('Firebase load failed, trying cache:', e);}
+  // 2. Fallback: localStorage cache
   try{
     const raw=localStorage.getItem('lbdo_atelier');
     if(raw){const p=JSON.parse(raw);Object.assign(state,p);return;}
   }catch(e){}
-  // Fallback: window.storage (Claude.ai artifact context)
+  // 3. Last resort: window.storage (Claude.ai)
   try{
     if(window.storage){
       const r=await window.storage.get('lbdo_atelier');
@@ -1411,11 +1455,20 @@ async function loadState(){
   }catch(e){}
 }
 async function saveState(){
-  const payload=JSON.stringify({projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[]});
-  // Save to localStorage (primary — works everywhere)
-  try{localStorage.setItem('lbdo_atelier',payload);}catch(e){}
-  // Also save to window.storage if available (Claude.ai context)
-  try{if(window.storage)await window.storage.set('lbdo_atelier',payload);}catch(e){}
+  const data={projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[]};
+  // 1. Save to Firebase (primary - sync across all devices)
+  try{
+    if(window._fbStateDoc && window._fbSetDoc){
+      await window._fbSetDoc(window._fbStateDoc, data);
+    }
+  }catch(e){console.warn('Firebase save failed:', e);}
+  // 2. Save to localStorage (cache/offline)
+  try{localStorage.setItem('lbdo_atelier', JSON.stringify(data));}catch(e){}
+  // 3. Save to window.storage if in Claude.ai
+  try{if(window.storage)await window.storage.set('lbdo_atelier', JSON.stringify(data));}catch(e){}
+  // Update status bar
+  const fbStatus=document.getElementById('firebase-status');
+  if(fbStatus){fbStatus.textContent='● Synchronisé';fbStatus.style.color='#2ecc71';}
   // Debounced Drive backup (30s after last change)
   if(_backupConnected){
     clearTimeout(window._driveBackupDebounce);
@@ -3853,9 +3906,125 @@ function parseCSVLine(line) {
 }
 
 
+
+// ==================== EXPORT MOBILE ====================
+function exportMobile() {
+  const payload = JSON.stringify({
+    projects: state.projects,
+    devis: state.devis,
+    settings: state.settings,
+    clients: state.clients || [],
+    stocks: state.stocks || [],
+    planning: state.planning || [],
+    resines: state.resines || []
+  });
+  // We can't embed the full HTML here, but we can create a tiny loader page
+  // that stores data in localStorage then redirects to the main app
+  const loaderHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Le bois d\'Olivier — Chargement</title>
+<style>
+body{background:#0f0d0a;color:#e8dcc8;font-family:monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;padding:20px;}
+.logo{color:#d4820a;font-size:24px;margin-bottom:20px;}
+p{color:#a09070;font-size:14px;margin:8px 0;}
+a{color:#d4820a;font-size:16px;margin-top:20px;display:block;}
+</style>
+</head>
+<body>
+<div class="logo">🪵 Le bois d\'Olivier</div>
+<p>Chargement de vos données...</p>
+<p id="status">⏳ En cours...</p>
+<a id="link" href="#" style="display:none">▶ Ouvrir l\'atelier</a>
+<script>
+try {
+  localStorage.setItem('lbdo_atelier', ${JSON.stringify(payload)});
+  document.getElementById('status').textContent = '✅ Données chargées !';
+  document.getElementById('status').style.color = '#2ecc71';
+  var link = document.getElementById('link');
+  link.href = 'https://leboisdolivier.github.io/atelier/';
+  link.style.display = 'block';
+} catch(e) {
+  document.getElementById('status').textContent = '❌ Erreur : ' + e.message;
+  document.getElementById('status').style.color = '#e74c3c';
+}
+<\/script>
+</body>
+</html>`;
+
+  const blob = new Blob([loaderHtml], {type: 'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'lbdo_mobile_' + new Date().toISOString().split('T')[0] + '.html';
+  a.click();
+  URL.revokeObjectURL(url);
+  alert('✅ Fichier créé !\n\nEnvoyez-le sur votre téléphone, ouvrez-le dans Chrome, il chargera vos données puis vous redirigera vers l\'app.');
+}
+
+// ==================== IMPORT FROM DRIVE ====================
+async function importFromDrive() {
+  if (!_backupConnected || !_driveToken) {
+    alert('Connectez d\'abord Google Drive (bouton en bas de page).');
+    return;
+  }
+  try {
+    // Find the backup file
+    const searchResp = await fetch(
+      'https://www.googleapis.com/drive/v3/files?q=name%3D\'lbdo_atelier_backup.json\'&spaces=drive&fields=files(id,name,modifiedTime)',
+      {headers: {Authorization: 'Bearer ' + _driveToken}}
+    );
+    const searchData = await searchResp.json();
+    if (!searchData.files || !searchData.files.length) {
+      alert('Aucune sauvegarde trouvée sur Drive.\nFaites d\'abord une sauvegarde depuis le PC.');
+      return;
+    }
+    // Get the latest file
+    const file = searchData.files.sort((a,b) => b.modifiedTime.localeCompare(a.modifiedTime))[0];
+    const modDate = new Date(file.modifiedTime).toLocaleString('fr-FR');
+    if (!confirm('Sauvegarde Drive trouvée (' + modDate + ').\nImporter et remplacer toutes les données actuelles ?')) return;
+
+    // Download it
+    const dlResp = await fetch(
+      'https://www.googleapis.com/drive/v3/files/' + file.id + '?alt=media',
+      {headers: {Authorization: 'Bearer ' + _driveToken}}
+    );
+    const data = await dlResp.json();
+
+    // The backup contains snapshots — take the most recent
+    let restored;
+    if (data.snapshots && data.snapshots.length) {
+      restored = data.snapshots[data.snapshots.length - 1].data;
+    } else if (data.projects !== undefined) {
+      restored = data;
+    } else {
+      alert('Format de sauvegarde non reconnu.');
+      return;
+    }
+
+    Object.assign(state, restored);
+    await saveState();
+    showSection('dashboard');
+    renderDashboard();
+    alert('✅ Données restaurées depuis Drive (' + modDate + ') !');
+  } catch(e) {
+    alert('Erreur lors de l\'import Drive : ' + e.message);
+  }
+}
+
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', async ()=>{
   dbg('DOM prêt');
+  // Wait for Firebase to be ready (max 3s)
+  if(!window._fbReady){
+    await new Promise(resolve=>{
+      const t=setTimeout(resolve, 3000);
+      window.addEventListener('firebase-ready',()=>{clearTimeout(t);resolve();},{once:true});
+    });
+  }
+  dbg('Firebase: ' + (window._fbReady ? 'prêt ✅' : 'non disponible'), window._fbReady||null);
   dbg('Chargement données...');
   await loadState();
   dbg('Données chargées — projets:' + (state.projects||[]).length + ' clients:' + (state.clients||[]).length, true);
@@ -3870,6 +4039,35 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});});
   dbg('Affichage tableau de bord...');
   showSection('dashboard');
+  // Real-time sync: auto-refresh if data changes on another device
+  try{
+    if(window._fbOnSnapshot && window._fbStateDoc){
+      window._fbOnSnapshot(window._fbStateDoc, snap=>{
+        if(snap.exists()){
+          const d=snap.data();
+          // Only update if data actually changed (avoid loop)
+          const current=JSON.stringify({projects:state.projects,devis:state.devis,clients:state.clients,stocks:state.stocks,planning:state.planning,resines:state.resines});
+          const incoming=JSON.stringify({projects:d.projects,devis:d.devis,clients:d.clients,stocks:d.stocks,planning:d.planning,resines:d.resines});
+          if(current!==incoming){
+            Object.assign(state,d);
+            try{localStorage.setItem('lbdo_atelier',JSON.stringify(d));}catch(e){}
+            // Refresh current visible section
+            const active=document.querySelector('.section.active');
+            if(active){
+              const id=active.id.replace('section-','');
+              if(id==='dashboard')renderDashboard();
+              else if(id==='projets')renderProjects();
+              else if(id==='devis')renderDevisList();
+              else if(id==='clients')renderClients();
+              else if(id==='stocks')renderStocks();
+              else if(id==='planning')renderPlanning();
+              else if(id==='stats')renderStats();
+            }
+          }
+        }
+      });
+    }
+  }catch(e){console.warn('Realtime listener failed:', e);}
   dbg('TOUT OK — suppression diagnostic dans 3s...', true);
   setTimeout(function(){ var o=document.getElementById('debug-overlay'); if(o)o.style.display='none'; }, 3000);
 });
