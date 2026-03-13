@@ -2356,26 +2356,35 @@ async function importClientsFile(input){
   const file=input.files[0];if(!file)return;
   const name=file.name.toLowerCase();
   if(!state.clients)state.clients=[];
-  try{
-    if(name.endsWith('.csv')){
-      const text=await file.text();
-      const lines=text.split('\n').filter(Boolean);
-      const headers=lines[0].split(/[;,]/).map(h=>h.trim().toLowerCase().replace(/"/g,''));
-      let added=0;
-      for(let i=1;i<lines.length;i++){
-        const cols=lines[i].split(/[;,]/).map(v=>v.trim().replace(/^"|"$/g,''));
-        const row={};headers.forEach((h,j)=>row[h]=cols[j]||'');
-        const fn=row.prenom||row.firstname||row['prénom']||'';
-        const ln=row.nom||row.lastname||row.name||'';
-        if(!fn&&!ln)continue;
-        state.clients.push({id:Date.now()+i,firstname:fn,lastname:ln,addr:row.adresse||row.address||row.addr||'',email:row.email||row.mail||'',tel:row.tel||row.telephone||row.phone||'',insta:row.instagram||row.insta||'',instaFollow:'non',vinted:row.vinted||'',lbc:row['le bon coin']||row.lbc||'',etsy:row.etsy||'',otherPlatform:'',notes:row.notes||row.note||'',relances:[]});
-        added++;
+  if(name.endsWith('.csv')){
+    // Detect if it's our export format (has === CLIENTS === marker) or a generic CSV
+    const reader=new FileReader();
+    reader.onload=async e=>{
+      const text=e.target.result.replace(/^\uFEFF/,'');
+      if(text.includes('=== CLIENTS ===')){
+        // Our own export format — full fidelity reimport with transactions
+        importClientsCSV(file);
+      } else {
+        // Generic CSV — basic import (coords only)
+        const lines=text.split('\n').filter(Boolean);
+        const headers=lines[0].split(/[;,]/).map(h=>h.trim().toLowerCase().replace(/"/g,''));
+        let added=0;
+        for(let i=1;i<lines.length;i++){
+          const cols=lines[i].split(/[;,]/).map(v=>v.trim().replace(/^"|"$/g,''));
+          const row={};headers.forEach((h,j)=>row[h]=cols[j]||'');
+          const fn=row.prenom||row.firstname||row['prénom']||'';
+          const ln=row.nom||row.lastname||row.name||'';
+          if(!fn&&!ln)continue;
+          state.clients.push({id:Date.now()+i,firstname:fn,lastname:ln,addr:row.adresse||row.address||row.addr||'',email:row.email||row.mail||'',tel:row.tel||row.telephone||row.phone||'',insta:row.instagram||row.insta||'',instaFollow:'non',vinted:row.vinted||'',lbc:row['le bon coin']||row.lbc||'',etsy:row.etsy||'',otherPlatform:'',notes:row.notes||row.note||'',relances:[],transactions:[]});
+          added++;
+        }
+        await saveState();renderClients();alert(added+' client(s) importé(s) depuis le CSV.');
       }
-      await saveState();renderClients();alert(`${added} client(s) importé(s) depuis le CSV.`);
-    }else{
-      alert('Pour importer un fichier Excel (.xlsx), exportez-le d\'abord en CSV depuis Excel (Fichier → Enregistrer sous → CSV), puis importez-le ici.');
-    }
-  }catch(e){alert('Erreur lors de l\'import : '+e.message);}
+    };
+    reader.readAsText(file,'UTF-8');
+  } else {
+    alert('Pour importer un fichier Excel (.xlsx), exportez-le d abord en CSV depuis Excel, puis importez-le ici.');
+  }
   input.value='';
 }
 
@@ -3648,85 +3657,61 @@ function exportClientsExcel() {
   const clients = state.clients || [];
   if (!clients.length) return alert('Aucun client à exporter.');
 
-  // Build CSV with BOM for Excel UTF-8 compatibility
   const SEP = ';';
   const rows = [];
 
-  // Header row
+  // ---- Feuille 1 : Clients ----
+  rows.push('=== CLIENTS ===');
   rows.push([
-    'Prénom', 'Nom', 'Adresse', 'Email', 'Téléphone',
-    'Instagram', 'Suivi Instagram', 'Vinted', 'Le Bon Coin', 'Etsy', 'Autre plateforme',
-    'CA Total (€)', 'Nb Commandes', 'Panier Moyen (€)', 'Dernier Achat',
-    'Nb Achats Historiques', 'Total Achats Historiques (€)',
-    'Notes'
+    'ID','Prénom','Nom','Adresse','Email','Téléphone',
+    'Instagram','Suivi Instagram','Vinted','Le Bon Coin','Etsy','Autre plateforme',
+    'CA Total (€)','Nb Commandes','Panier Moyen (€)','Dernier Achat','Notes'
   ].join(SEP));
 
   clients.forEach(cl => {
-    // Compute KPIs
     const txs = cl.transactions || [];
-    const txTotal = txs.reduce((s, t) => s + (t.amount || 0), 0);
-    const txCount = txs.length;
-
-    const fullName = ((cl.firstname || '') + ' ' + (cl.lastname || '')).trim();
-    const devisClient = (state.devis || []).filter(d =>
-      d.clientId === cl.id || d.client === fullName
-    );
-    const devisAccepted = devisClient.filter(d => d.status === 'accepte' || d.status === 'facture');
-    const devisTotal = devisAccepted.reduce((s, d) => {
-      const base = (d.lignes || []).reduce((a, l) => a + (l.qty * l.price), 0);
-      return s + base + base * ((d.tvaPct || 0) / 100);
-    }, 0);
-
+    const txTotal = txs.reduce((s,t) => s+(t.amount||0), 0);
+    const fullName = ((cl.firstname||'')+' '+(cl.lastname||'')).trim();
+    const devisAcc = (state.devis||[]).filter(d => (d.clientId===cl.id||d.client===fullName) && (d.status==='accepte'||d.status==='facture'));
+    const devisTotal = devisAcc.reduce((s,d) => { const b=(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0); return s+b*(1+(d.marginPct||0)/100); }, 0);
     const totalCA = txTotal + devisTotal;
-    const totalCmd = txCount + devisAccepted.length;
-    const panier = totalCmd > 0 ? (totalCA / totalCmd).toFixed(2) : '0.00';
-
-    const allDates = [
-      ...txs.map(t => t.date),
-      ...devisAccepted.map(d => d.date)
-    ].filter(Boolean).sort().reverse();
+    const totalCmd = txs.length + devisAcc.length;
+    const panier = totalCmd > 0 ? (totalCA/totalCmd).toFixed(2) : '0.00';
+    const allDates = [...txs.map(t=>t.date),...devisAcc.map(d=>d.date)].filter(Boolean).sort().reverse();
     const lastDate = allDates[0] ? new Date(allDates[0]).toLocaleDateString('fr-FR') : '';
-
-    const csvCell = v => '"' + String(v || '').replace(/"/g, '""') + '"';
+    const q = v => '"'+String(v||'').replace(/"/g,'""')+'"';
 
     rows.push([
-      csvCell(cl.firstname || ''),
-      csvCell(cl.lastname || ''),
-      csvCell(cl.addr || ''),
-      csvCell(cl.email || ''),
-      csvCell(cl.tel || ''),
-      csvCell(cl.insta || ''),
-      csvCell(cl.instaFollow === 'oui' ? 'Oui' : 'Non'),
-      csvCell(cl.vinted || ''),
-      csvCell(cl.lbc || ''),
-      csvCell(cl.etsy || ''),
-      csvCell(cl.otherPlatform || ''),
-      totalCA.toFixed(2).replace('.', ','),
-      totalCmd,
-      panier.replace('.', ','),
-      csvCell(lastDate),
-      txCount,
-      txTotal.toFixed(2).replace('.', ','),
-      csvCell(cl.notes || '')
+      cl.id, q(cl.firstname||''), q(cl.lastname||''), q(cl.addr||''),
+      q(cl.email||''), q(cl.tel||''), q(cl.insta||''),
+      q(cl.instaFollow==='oui'?'Oui':'Non'),
+      q(cl.vinted||''), q(cl.lbc||''), q(cl.etsy||''), q(cl.otherPlatform||''),
+      totalCA.toFixed(2).replace('.',','), totalCmd,
+      panier.replace('.',','), q(lastDate), q(cl.notes||'')
     ].join(SEP));
+  });
 
-    // Add transaction detail rows (indented)
-    txs.forEach(tx => {
+  // ---- Feuille 2 : Transactions (réimportables) ----
+  rows.push('');
+  rows.push('=== TRANSACTIONS ===');
+  rows.push([
+    'CLIENT_ID','Prénom','Nom','Date','Montant (€)','Description','Plateforme','Paiement','Notes'
+  ].join(SEP));
+
+  clients.forEach(cl => {
+    (cl.transactions||[]).forEach(tx => {
+      const q = v => '"'+String(v||'').replace(/"/g,'""')+'"';
       rows.push([
-        '', '', '', '', '', '', '', '', '', '', '',
-        tx.amount ? tx.amount.toFixed(2).replace('.', ',') : '0,00',
-        '', '', '',
-        '1',
-        tx.amount ? tx.amount.toFixed(2).replace('.', ',') : '0,00',
-        csvCell((tx.date ? new Date(tx.date).toLocaleDateString('fr-FR') : '') + ' — ' + (tx.desc || '') + (tx.platform ? ' [' + (PLATFORM_LABELS[tx.platform] || tx.platform) + ']' : '') + (tx.notes ? ' (' + tx.notes + ')' : ''))
+        cl.id, q(cl.firstname||''), q(cl.lastname||''),
+        q(tx.date||''),
+        (tx.amount||0).toFixed(2).replace('.',','),
+        q(tx.desc||''), q(tx.platform||'direct'), q(tx.payment||''), q(tx.notes||'')
       ].join(SEP));
     });
   });
 
-  // BOM + CSV content
   const bom = '\uFEFF';
-  const csv = bom + rows.join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([bom + rows.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -3734,6 +3719,91 @@ function exportClientsExcel() {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+function importClientsCSV(file) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const text = e.target.result.replace(/^\uFEFF/,'');
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+      let mode = null;
+      const clientsMap = {}; // id -> client obj
+      const newClients = [];
+
+      // Parse sections
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line === '=== CLIENTS ===') { mode = 'clients'; i++; continue; } // skip header
+        if (line === '=== TRANSACTIONS ===') { mode = 'transactions'; i++; continue; } // skip header
+        if (!line) continue;
+
+        const cols = parseCSVLine(line);
+
+        if (mode === 'clients') {
+          const cl = {
+            id: parseInt(cols[0]) || Date.now() + Math.random(),
+            firstname: cols[1]||'', lastname: cols[2]||'',
+            addr: cols[3]||'', email: cols[4]||'', tel: cols[5]||'',
+            insta: cols[6]||'', instaFollow: cols[7]==='Oui'?'oui':'non',
+            vinted: cols[8]||'', lbc: cols[9]||'', etsy: cols[10]||'',
+            otherPlatform: cols[11]||'', notes: cols[16]||'',
+            transactions: []
+          };
+          clientsMap[cl.id] = cl;
+          newClients.push(cl);
+        }
+
+        if (mode === 'transactions') {
+          const clientId = parseInt(cols[0]);
+          const cl = clientsMap[clientId];
+          if (cl) {
+            cl.transactions.push({
+              date: cols[3]||'',
+              amount: parseFloat((cols[4]||'0').replace(',','.'))||0,
+              desc: cols[5]||'',
+              platform: cols[6]||'direct',
+              payment: cols[7]||'',
+              notes: cols[8]||''
+            });
+          }
+        }
+      }
+
+      if (!newClients.length) return alert('Aucun client trouvé dans le fichier.');
+
+      // Merge: keep existing clients not in file, update/add imported ones
+      const existingIds = new Set(newClients.map(c => c.id));
+      const kept = (state.clients||[]).filter(c => !existingIds.has(c.id));
+      state.clients = [...kept, ...newClients];
+      await saveState();
+      renderClients();
+      alert('✅ ' + newClients.length + ' client(s) importé(s) avec leurs transactions !');
+    } catch(err) {
+      alert('Erreur lors de l\'import : ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuote && line[i+1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if (ch === ';' && !inQuote) {
+      result.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
 
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', async ()=>{
