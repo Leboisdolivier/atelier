@@ -599,6 +599,33 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
+<div id="debug-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0d0a;z-index:99999;padding:20px;font-family:monospace;font-size:13px;color:#e8dcc8;overflow:auto;display:block;">
+  <div style="color:#d4820a;font-size:16px;margin-bottom:15px;">🪵 Le bois d'Olivier — Diagnostic</div>
+  <div id="dbg-steps"></div>
+</div>
+<script>
+function dbg(msg, ok) {
+  var el = document.getElementById('dbg-steps');
+  if (!el) return;
+  var line = document.createElement('div');
+  line.style.margin = '4px 0';
+  line.style.color = ok === false ? '#e74c3c' : ok === true ? '#2ecc71' : '#e8dcc8';
+  line.textContent = (ok === true ? '✅ ' : ok === false ? '❌ ' : '⏳ ') + msg;
+  el.appendChild(line);
+}
+dbg('Page chargée');
+dbg('localStorage: ' + (typeof localStorage !== 'undefined' ? 'OK' : 'ABSENT'), typeof localStorage !== 'undefined');
+try { localStorage.setItem('_test','1'); localStorage.removeItem('_test'); dbg('localStorage lecture/écriture: OK', true); } catch(e) { dbg('localStorage erreur: ' + e.message, false); }
+dbg('window.storage: ' + (typeof window.storage !== 'undefined' ? 'présent' : 'absent'));
+window.onerror = function(msg,src,line,col,err) {
+  dbg('ERREUR JS: ' + msg + ' (ligne ' + line + ')', false);
+  if(err && err.stack) dbg(err.stack.slice(0,200), false);
+  return false;
+};
+window.addEventListener('unhandledrejection', function(e) {
+  dbg('PROMISE REJETÉE: ' + (e.reason ? e.reason.toString() : '?'), false);
+});
+</script>
 
 
 <div id="backup-bar">
@@ -3807,7 +3834,10 @@ function parseCSVLine(line) {
 
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', async ()=>{
+  dbg('DOM prêt');
+  dbg('Chargement données...');
   await loadState();
+  dbg('Données chargées — projets:' + (state.projects||[]).length + ' clients:' + (state.clients||[]).length, true);
   if(!state.devis)state.devis=[];if(!state.settings)state.settings={};if(!state.clients)state.clients=[];
   if(!state.stocks)state.stocks=[];if(!state.planning)state.planning=[];if(!state.resines)state.resines=[];
   state.projects.forEach(p=>{if(!p.resins)p.resins=[];if(!p.times)p.times=[];if(!p.postes)p.postes=[];});
@@ -3817,7 +3847,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   setShape('rectangle');
   document.getElementById('time-date').value=new Date().toISOString().split('T')[0];
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});});
+  dbg('Affichage tableau de bord...');
   showSection('dashboard');
+  dbg('TOUT OK — suppression diagnostic dans 3s...', true);
+  setTimeout(function(){ var o=document.getElementById('debug-overlay'); if(o)o.style.display='none'; }, 3000);
 });
 </script>
 
