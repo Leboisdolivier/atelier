@@ -1308,7 +1308,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
 <!-- Add Ligne Devis -->
 <div class="modal-overlay" id="modal-ligne">
-  <div class="modal">
+  <div class="modal" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">
     <h2>Ajouter une ligne</h2>
     <div class="form-group"><label>Désignation</label><input type="text" id="lg-name" placeholder="Plateau chêne, résine, pieds…"></div>
     <div class="form-row">
@@ -4038,7 +4038,18 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('time-date').value=new Date().toISOString().split('T')[0];
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});});
   dbg('Affichage tableau de bord...');
-  showSection('dashboard');
+  try {
+    showSection('dashboard');
+    dbg('showSection OK', true);
+  } catch(e) {
+    dbg('ERREUR showSection: ' + e.message, false);
+  }
+  try {
+    renderDashboard();
+    dbg('renderDashboard OK', true);
+  } catch(e) {
+    dbg('ERREUR renderDashboard: ' + e.message, false);
+  }
   // Real-time sync: auto-refresh if data changes on another device
   try{
     if(window._fbOnSnapshot && window._fbStateDoc){
