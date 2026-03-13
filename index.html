@@ -1343,13 +1343,25 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
 let state={projects:[],devis:[],settings:{},currentId:null,currentDevisId:null,editMode:false,calcShape:'rectangle'};
 
 async function loadState(){
+  // Try localStorage first (works on GitHub Pages, mobile, everywhere)
   try{
-    const r=await window.storage.get('lbdo_atelier');
-    if(r&&r.value){const p=JSON.parse(r.value);Object.assign(state,p);}
+    const raw=localStorage.getItem('lbdo_atelier');
+    if(raw){const p=JSON.parse(raw);Object.assign(state,p);return;}
+  }catch(e){}
+  // Fallback: window.storage (Claude.ai artifact context)
+  try{
+    if(window.storage){
+      const r=await window.storage.get('lbdo_atelier');
+      if(r&&r.value){const p=JSON.parse(r.value);Object.assign(state,p);}
+    }
   }catch(e){}
 }
 async function saveState(){
-  try{await window.storage.set('lbdo_atelier',JSON.stringify({projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[]}));}catch(e){}
+  const payload=JSON.stringify({projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[]});
+  // Save to localStorage (primary — works everywhere)
+  try{localStorage.setItem('lbdo_atelier',payload);}catch(e){}
+  // Also save to window.storage if available (Claude.ai context)
+  try{if(window.storage)await window.storage.set('lbdo_atelier',payload);}catch(e){}
   // Debounced Drive backup (30s after last change)
   if(_backupConnected){
     clearTimeout(window._driveBackupDebounce);
