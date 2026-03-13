@@ -208,9 +208,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
 @media print{
   body,html{background:#fff!important;color:#000!important;}
   body::before{display:none!important;}
-  nav,#print-toolbar,.modal-overlay{display:none!important;}
-  main > .section:not(#section-print-preview){display:none!important;}
-  main > #section-print-preview{display:block!important;}
+  nav,#print-toolbar,.mobile-nav,.modal-overlay{display:none!important;}
+  
+  #section-print-preview{display:block!important;}
   .print-no{display:none!important;}
   @page{margin:12mm 14mm 12mm 14mm;size:A4;}
 }
@@ -596,15 +596,27 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
   .settings-grid{grid-template-columns:1fr;}
 }
 
-/* === SECTION VISIBILITY === */
+
+
+
+body main 
+
+/* === SECTION VISIBILITY (JS-controlled) === */
 .section { display: none; }
-.section.active { display: block !important; }
-body main .section.active { display: block !important; }
+.section.active { display: block; }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-<div id="debug-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0d0a;z-index:99999;padding:20px;font-family:monospace;font-size:13px;color:#e8dcc8;overflow:auto;display:block;">
+<script>
+// Hide all sections immediately on load - bypass any CSS issues
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.section').forEach(function(s){
+    s.style.display='none';
+  });
+});
+</script>
+<div id="debug-overlay"  style="position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0d0a;z-index:99999;padding:20px;font-family:monospace;font-size:13px;color:#e8dcc8;overflow:auto;display:block;">
   <div style="color:#d4820a;font-size:16px;margin-bottom:15px;">🪵 Le bois d'Olivier — Diagnostic</div>
   <div id="dbg-steps"></div>
 </div>
@@ -657,7 +669,7 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
 </nav>
 
-<main>
+<div id="main-content">
 
 <!-- PROJETS LIST -->
 <div id="section-projets" class="section">
@@ -1142,7 +1154,7 @@ window.addEventListener('unhandledrejection', function(e) {
   <img id="lightbox-img" src="" alt="">
 </div>
 
-</main>
+</div><!-- main-content -->
 
 <!-- ==================== MODALS ==================== -->
 
@@ -1413,9 +1425,13 @@ async function saveState(){
 
 // ==================== NAV ====================
 function showSection(id){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>{
+    s.classList.remove('active');
+    s.style.display='none';
+  });
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('section-'+id).classList.add('active');
+  const sec=document.getElementById('section-'+id);
+  if(sec){sec.classList.add('active');sec.style.display='block';}
   const activeTab=document.querySelector(`.nav-tab[data-section="${id}"]`);
   if(activeTab)activeTab.classList.add('active');
   updateMobileNav(id);
