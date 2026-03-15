@@ -1009,8 +1009,18 @@ window.addEventListener('unhandledrejection', function(e) {
 <!-- CATALOGUE RÉSINE -->
 <div id="section-catalogue-resine" class="section">
   <div class="page-header"><h1>Catalogue de résines</h1><p>// résines utilisées, sélectionnables dans un projet, un devis ou la calculatrice</p></div>
-  <div style="margin-bottom:18px;display:flex;gap:10px;flex-wrap:wrap;">
+  <div style="margin-bottom:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
     <button class="btn btn-primary" onclick="openNewResine()">＋ Nouvelle résine</button>
+    <button class="btn btn-ghost" type="button" onclick="var b=document.getElementById('import-resines-toggle');b.style.display=b.style.display==='none'?'block':'none';" title="Importer depuis des fiches techniques">📥 Importer des résines (JSON)</button>
+  </div>
+  <div id="import-resines-toggle" style="display:none;margin-bottom:20px;padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+    <div class="section-title" style="margin-bottom:8px;">Importer des résines à partir d’un JSON</div>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Collez ici un tableau JSON généré à partir de vos fiches techniques (une entrée par résine). Champs possibles : name, brand, color, priceA, priceB, ratioA, ratioB, gel, density, maxpour, notes.</p>
+    <textarea id="import-resines-json" rows="8" placeholder='[{"name":"Résine X","brand":"Marque","priceA":12,"priceB":14,"ratioA":100,"ratioB":42,"gel":60,"density":1.1,"maxpour":30,"notes":"..."}]' style="width:100%;padding:12px;font-family:'DM Mono',monospace;font-size:11px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);"></textarea>
+    <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+      <button class="btn btn-primary" onclick="importResinesFromJson()">Importer dans le catalogue</button>
+      <span id="import-resines-result" style="font-size:12px;color:var(--text-dim);"></span>
+    </div>
   </div>
   <div class="resines-grid" id="catalogue-resines-grid"></div>
   <div id="catalogue-resines-empty" class="empty" style="display:none;"><div class="empty-icon">🧪</div><h3>Aucune résine au catalogue</h3><p>Ajoutez des résines ici ou depuis un projet ; elles seront réutilisables dans la calculatrice et les devis.</p></div>
@@ -1298,8 +1308,8 @@ window.addEventListener('unhandledrejection', function(e) {
 </div>
 
 <!-- Add/Edit Poste -->
-<div class="modal-overlay" id="modal-poste" onclick="if(event.target===this)closeModal('modal-poste')">
-  <div class="modal" onclick="event.stopPropagation()">
+<div class="modal-overlay" id="modal-poste">
+  <div class="modal">
     <h2 id="modal-poste-title">Ajouter un poste de coût</h2>
     <div class="form-group"><label>Désignation</label>
       <div class="ac-wrap">
@@ -1426,8 +1436,8 @@ window.addEventListener('unhandledrejection', function(e) {
 </div>
 
 <!-- Add/Edit Ligne Devis -->
-<div class="modal-overlay" id="modal-ligne" onclick="if(event.target===this)closeModal('modal-ligne')">
-  <div class="modal" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">
+<div class="modal-overlay" id="modal-ligne">
+  <div class="modal">
     <h2 id="modal-ligne-title">Ajouter une ligne</h2>
     <div class="form-group"><label>Désignation</label><input type="text" id="lg-name" placeholder="Plateau chêne, résine, pieds…"></div>
     <div class="form-row">
@@ -3768,13 +3778,12 @@ function renderCatalogueResines(){
   if(empty)empty.style.display='none';
   state.resines.forEach((r,i)=>{
     const totA=r.ratioA||2,totB=r.ratioB||1,tot=totA+totB;
-    const priceA=parseFloat(r.priceA)||0,priceB=parseFloat(r.priceB)||0;
-    const blended=tot?(priceA*totA/tot+priceB*totB/tot):0;
+    const dens=r.density||1.1;
+    const prixAuLitre = r.pricePerLiter != null ? r.pricePerLiter : (function(){const pA=parseFloat(r.priceA)||0,pB=parseFloat(r.priceB)||0; return tot?(pA*totA/tot+pB*totB/tot)*dens:0;})();
     const card=document.createElement('div');card.className='resine-card';
     card.innerHTML='<div class="resine-name">'+esc(r.name)+'</div>'
       +'<div class="resine-brand">'+esc(r.brand||'—')+(r.color?' · '+esc(r.color):'')+'</div>'
-      +'<div class="resine-specs"><div class="resine-spec"><div class="resine-spec-val">'+fmtEur(blended)+'</div><div class="resine-spec-label">Prix mélangé /kg</div></div>'
-      +'<div class="resine-spec"><div class="resine-spec-val">'+fmtEur(priceA)+' / '+fmtEur(priceB)+'</div><div class="resine-spec-label">Prix A / B (€/kg)</div></div>'
+      +'<div class="resine-specs"><div class="resine-spec"><div class="resine-spec-val">'+fmtEur(prixAuLitre)+'</div><div class="resine-spec-label">Prix (€/L)</div></div>'
       +'<div class="resine-spec"><div class="resine-spec-val" style="color:var(--amber-light)">'+totA+':'+totB+'</div><div class="resine-spec-label">Ratio A:B</div></div></div>'
       +'<div class="resine-ratio">Pour 1 kg → '+(totA/tot*1000).toFixed(0)+'g A + '+(totB/tot*1000).toFixed(0)+'g B</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
@@ -3793,17 +3802,15 @@ function renderResines() {
   if (!state.resines.length) { empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   state.resines.forEach((r, i) => {
-    // Calculate blended price per kg
     const totA = r.ratioA || 2, totB = r.ratioB || 1, tot = totA + totB;
-    const priceA = parseFloat(r.priceA) || 0, priceB = parseFloat(r.priceB) || 0;
-    const blended = (priceA * totA / tot) + (priceB * totB / tot);
+    const dens = r.density || 1.1;
+    const prixAuLitre = r.pricePerLiter != null ? r.pricePerLiter : (function(){const pA=parseFloat(r.priceA)||0,pB=parseFloat(r.priceB)||0; return tot?(pA*totA/tot+pB*totB/tot)*dens:0;})();
 
     const card = document.createElement('div'); card.className = 'resine-card';
     card.innerHTML = '<div class="resine-name">' + esc(r.name) + '</div>'
       + '<div class="resine-brand">' + esc(r.brand || '—') + (r.color ? ' · ' + esc(r.color) : '') + '</div>'
       + '<div class="resine-specs">'
-      + '<div class="resine-spec"><div class="resine-spec-val">' + fmtEur(blended) + '</div><div class="resine-spec-label">Prix mélangé /kg</div></div>'
-      + '<div class="resine-spec"><div class="resine-spec-val">' + fmtEur(priceA) + ' / ' + fmtEur(priceB) + '</div><div class="resine-spec-label">Prix A / Prix B (€/kg)</div></div>'
+      + '<div class="resine-spec"><div class="resine-spec-val">' + fmtEur(prixAuLitre) + '</div><div class="resine-spec-label">Prix (€/L)</div></div>'
       + '<div class="resine-spec"><div class="resine-spec-val" style="color:var(--amber-light)">' + totA + ':' + totB + '</div><div class="resine-spec-label">Ratio A:B</div></div>'
       + '<div class="resine-spec"><div class="resine-spec-val">' + (r.gel || '—') + ' min</div><div class="resine-spec-label">Temps de gel</div></div>'
       + '</div>'
@@ -3831,8 +3838,7 @@ function openNewResine() {
   state.editResineIdx = -1;
   document.getElementById('modal-resine-title').textContent = 'Nouvelle résine';
   ['res-name','res-brand','res-color','res-notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('res-price-a').value = '';
-  document.getElementById('res-price-b').value = '';
+  document.getElementById('res-price-per-liter').value = '';
   document.getElementById('res-ratio-a').value = '2';
   document.getElementById('res-ratio-b').value = '1';
   document.getElementById('res-gel').value = '60';
@@ -3848,8 +3854,8 @@ function openEditResine(i) {
   document.getElementById('modal-resine-title').textContent = 'Modifier la résine';
   document.getElementById('res-name').value = r.name || '';
   document.getElementById('res-brand').value = r.brand || '';
-  document.getElementById('res-price-a').value = r.priceA || '';
-  document.getElementById('res-price-b').value = r.priceB || '';
+  var ppl = r.pricePerLiter != null ? r.pricePerLiter : (r.priceA != null || r.priceB != null ? (function(){var tot=(r.ratioA||2)+(r.ratioB||1);var bl=(parseFloat(r.priceA)||0)*(r.ratioA||2)/tot+(parseFloat(r.priceB)||0)*(r.ratioB||1)/tot;return bl*(r.density||1.1);})() : '');
+  document.getElementById('res-price-per-liter').value = ppl !== '' ? ppl : '';
   document.getElementById('res-ratio-a').value = r.ratioA || 2;
   document.getElementById('res-ratio-b').value = r.ratioB || 1;
   document.getElementById('res-gel').value = r.gel || 60;
@@ -3862,27 +3868,27 @@ function openEditResine(i) {
 }
 
 function updateResinePreview() {
+  const ppl = parseFloat(document.getElementById('res-price-per-liter').value) || 0;
+  const dens = parseFloat(document.getElementById('res-density').value) || 1.1;
   const a = parseFloat(document.getElementById('res-ratio-a').value) || 0;
   const b = parseFloat(document.getElementById('res-ratio-b').value) || 0;
-  const pA = parseFloat(document.getElementById('res-price-a').value) || 0;
-  const pB = parseFloat(document.getElementById('res-price-b').value) || 0;
   const tot = a + b;
-  if (!tot) { document.getElementById('resine-preview').textContent = 'Saisissez les ratios'; return; }
-  const blended = tot ? (pA * a / tot + pB * b / tot) : 0;
+  const el = document.getElementById('resine-preview');
+  if (!el) return;
+  if (!tot) { el.textContent = 'Saisissez les ratios A:B'; return; }
   const gA = (a / tot * 1000).toFixed(0), gB = (b / tot * 1000).toFixed(0);
-  document.getElementById('resine-preview').innerHTML =
-    'Ratio ' + a + ':' + b + ' → pour 1 kg : <strong>' + gA + 'g A + ' + gB + 'g B</strong>'
-    + (blended ? ' | Prix mélangé : <strong style="color:var(--resin)">' + fmtEur(blended) + '/kg</strong>' : '');
+  el.innerHTML = 'Ratio ' + a + ':' + b + ' → pour 1 kg : <strong>' + gA + 'g A + ' + gB + 'g B</strong>'
+    + (ppl ? ' | Prix au litre : <strong style="color:var(--resin)">' + fmtEur(ppl) + '/L</strong>' : '');
 }
 
 async function saveResine() {
   const name = document.getElementById('res-name').value.trim();
   if (!name) return alert('Saisissez un nom de résine.');
   if (!state.resines) state.resines = [];
+  const pricePerLiter = parseFloat(document.getElementById('res-price-per-liter').value) || 0;
   const entry = {
     name, brand: document.getElementById('res-brand').value.trim(),
-    priceA: parseFloat(document.getElementById('res-price-a').value) || 0,
-    priceB: parseFloat(document.getElementById('res-price-b').value) || 0,
+    pricePerLiter: pricePerLiter || undefined,
     ratioA: parseFloat(document.getElementById('res-ratio-a').value) || 2,
     ratioB: parseFloat(document.getElementById('res-ratio-b').value) || 1,
     gel: parseInt(document.getElementById('res-gel').value) || 60,
@@ -3905,11 +3911,51 @@ async function deleteResine(i) {
   renderResines();
 }
 
+async function importResinesFromJson() {
+  const ta = document.getElementById('import-resines-json');
+  const resultEl = document.getElementById('import-resines-result');
+  if (!ta || !resultEl) return;
+  const raw = (ta.value || '').trim();
+  if (!raw) { resultEl.textContent = 'Collez un JSON dans la zone ci-dessus.'; return; }
+  let arr;
+  try { arr = JSON.parse(raw); } catch (e) { resultEl.textContent = 'JSON invalide : ' + e.message; return; }
+  if (!Array.isArray(arr)) { resultEl.textContent = 'Le JSON doit être un tableau (liste) de résines.'; return; }
+  if (!state.resines) state.resines = [];
+  const existingNames = (state.resines || []).map(r => (r.name || '').toLowerCase());
+  let added = 0, skipped = 0;
+  arr.forEach(item => {
+    const name = (item.name || item.nom || '').toString().trim();
+    if (!name) return;
+    if (existingNames.includes(name.toLowerCase())) { skipped++; return; }
+    existingNames.push(name.toLowerCase());
+    state.resines.push({
+      name,
+      brand: (item.brand || item.marque || '').toString().trim(),
+      color: (item.color || item.couleur || '').toString().trim(),
+      priceA: parseFloat(item.priceA || item.prixA || item.prix_a || 0) || 0,
+      priceB: parseFloat(item.priceB || item.prixB || item.prix_b || 0) || 0,
+      ratioA: parseFloat(item.ratioA || item.ratio_a || 100) || 100,
+      ratioB: parseFloat(item.ratioB || item.ratio_b || 50) || 50,
+      gel: parseInt(item.gel || item.tempsGel || 60, 10) || 60,
+      density: parseFloat(item.density || item.densite || 1.1) || 1.1,
+      maxpour: parseInt(item.maxpour || item.epaisseurMax || 30, 10) || 30,
+      notes: (item.notes || item.note || '').toString().trim()
+    });
+    added++;
+  });
+  await saveState();
+  if (typeof renderCatalogueResines === 'function') renderCatalogueResines();
+  if (typeof renderResines === 'function') renderResines();
+  resultEl.textContent = added + ' résine(s) importée(s).' + (skipped ? ' ' + skipped + ' déjà présente(s) (ignorées).' : '');
+  ta.value = '';
+}
+
 function applyResineToCalc(i) {
   const r = state.resines[i]; if (!r) return;
   const tot = (r.ratioA || 2) + (r.ratioB || 1);
-  const blended = (parseFloat(r.priceA) || 0) * (r.ratioA || 2) / tot + (parseFloat(r.priceB) || 0) * (r.ratioB || 1) / tot;
-  // Set price in calculatrice
+  const dens = r.density || 1.1;
+  const blended = r.pricePerLiter != null ? r.pricePerLiter / dens : (parseFloat(r.priceA) || 0) * (r.ratioA || 2) / tot + (parseFloat(r.priceB) || 0) * (r.ratioB || 1) / tot;
+  // Set price in calculatrice (prix au kg)
   const el = document.getElementById('resin-price');
   if (el) { el.value = blended.toFixed(2); }
   // Set density if field exists
@@ -3921,7 +3967,8 @@ function applyResineToCalc(i) {
     const el2 = document.getElementById('resin-price');
     if (el2) { el2.style.borderColor = 'var(--resin)'; setTimeout(() => el2.style.borderColor = '', 1500); }
   }, 200);
-  alert('Résine "' + r.name + '" appliquée !\nPrix mélangé : ' + fmtEur(blended) + '/kg\nRatio A:B : ' + (r.ratioA||2) + ':' + (r.ratioB||1));
+  const ppl = r.pricePerLiter != null ? r.pricePerLiter : blended * dens;
+  alert('Résine "' + r.name + '" appliquée !\nPrix au litre : ' + fmtEur(ppl) + '/L\nRatio A:B : ' + (r.ratioA||2) + ':' + (r.ratioB||1));
 }
 
 function openResineSelector() {
@@ -3935,11 +3982,12 @@ function openResineSelector() {
   list.innerHTML = '';
   state.resines.forEach((r, i) => {
     const tot = (r.ratioA || 2) + (r.ratioB || 1);
-    const blended = (parseFloat(r.priceA)||0)*(r.ratioA||2)/tot + (parseFloat(r.priceB)||0)*(r.ratioB||1)/tot;
+    const dens = r.density || 1.1;
+    const ppl = r.pricePerLiter != null ? r.pricePerLiter : (function(){const pA=parseFloat(r.priceA)||0,pB=parseFloat(r.priceB)||0; return tot?(pA*(r.ratioA||2)/tot+pB*(r.ratioB||1)/tot)*dens:0;})();
     const div = document.createElement('div');
     div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;';
     div.innerHTML = '<div><div style="font-size:14px;color:var(--text)">' + esc(r.name) + '</div><div style="font-size:11px;color:var(--text-dim);font-family:DM Mono,monospace;">' + esc(r.brand||'') + ' · Ratio ' + (r.ratioA||2) + ':' + (r.ratioB||1) + '</div></div>'
-      + '<div style="text-align:right;"><div style="font-family:DM Mono,monospace;font-size:13px;color:var(--resin)">' + fmtEur(blended) + '/kg</div><button class="btn btn-resin btn-sm" onclick="applyResineToCalc(' + i + ');closeModal(\'modal-resine-select\')">Utiliser</button></div>';
+      + '<div style="text-align:right;"><div style="font-family:DM Mono,monospace;font-size:13px;color:var(--resin)">' + fmtEur(ppl) + '/L</div><button class="btn btn-resin btn-sm" onclick="applyResineToCalc(' + i + ');closeModal(\'modal-resine-select\')">Utiliser</button></div>';
     list.appendChild(div);
   });
   openModal('modal-resine-select');
@@ -4673,9 +4721,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       <div class="form-group"><label>Nom de la résine</label><input type="text" id="res-name" placeholder="Crystal Clear 200, Table Top Pro…"></div>
       <div class="form-group"><label>Marque / Fournisseur</label><input type="text" id="res-brand" placeholder="Sicomin, Resines&Co…"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Prix composant A (€/kg)</label><input type="number" id="res-price-a" step="0.01" min="0" placeholder="0.00"></div>
-      <div class="form-group"><label>Prix composant B (€/kg)</label><input type="number" id="res-price-b" step="0.01" min="0" placeholder="0.00"></div>
+    <div class="form-group">
+      <label>Prix au litre (€/L)</label>
+      <input type="number" id="res-price-per-liter" step="0.01" min="0" placeholder="0.00" oninput="updateResinePreview()">
     </div>
     <div class="form-row">
       <div class="form-group"><label>Ratio A (parties)</label><input type="number" id="res-ratio-a" step="0.1" min="0" value="2" oninput="updateResinePreview()"></div>
