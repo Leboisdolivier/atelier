@@ -34,7 +34,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:14px 3
 .nav-tab{padding:6px 14px;border-radius:5px;border:none;background:transparent;color:var(--text-dim);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.5px;cursor:pointer;transition:all .2s;text-transform:uppercase;}
 .nav-tab:hover{color:var(--text);}.nav-tab.active{background:var(--amber);color:#0f0d0a;font-weight:500;}
 
-main{max-width:1260px;margin:0 auto;padding:32px 36px;}
+main,#main-content{max-width:1260px;margin:0 auto;padding:32px 36px;min-height:50vh;}
 
 .page-header{margin-bottom:32px;}
 .page-header h1{font-family:'Playfair Display',serif;font-size:36px;font-weight:700;line-height:1;margin-bottom:5px;}
@@ -468,7 +468,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
   .logo-text{font-size:15px;}
 
   /* Main padding — leave room for bottom nav */
-  main{padding:16px 14px 80px 14px;max-width:100%;}
+  main,#main-content{padding:16px 14px 80px 14px;max-width:100%;display:block!important;visibility:visible!important;}
 
   /* Show mobile nav */
   .mobile-nav{display:block;}
@@ -633,10 +633,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
 </head>
 <body>
 <script>
-// Hide all sections immediately on load - bypass any CSS issues
+// Ensure only the active section is visible on load (avoid blank body on mobile before async init)
 document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('.section').forEach(function(s){
-    s.style.display='none';
+    s.style.display = s.classList.contains('active') ? 'block' : 'none';
   });
 });
 </script>
@@ -689,6 +689,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="nav-tab" data-section="stocks" onclick="showSection('stocks')">📦 Stocks</button>
     <button class="nav-tab" data-section="planning" onclick="showSection('planning')">📅 Planning</button>
     <button class="nav-tab" data-section="stats" onclick="showSection('stats')">📈 Stats</button>
+    <button class="nav-tab" data-section="catalogue-resine" onclick="showSection('catalogue-resine')">🧪 Catalogue résine</button>
     <button class="nav-tab" data-section="scanner" onclick="showSection('scanner')">📷 Factures</button>
     <button class="nav-tab" data-section="parametres" onclick="showSection('parametres')">⚙ Paramètres</button>
   </div>
@@ -708,7 +709,7 @@ window.addEventListener('unhandledrejection', function(e) {
 <div id="section-detail" class="section">
   <button class="back-btn" onclick="showSection('projets')">← Retour</button>
   <div class="detail-header">
-    <div><div class="detail-title" id="detail-name">—</div><div class="detail-desc" id="detail-desc">—</div></div>
+    <div><div class="detail-title" id="detail-name">—</div><div class="detail-desc" id="detail-desc">—</div><div class="detail-desc" id="detail-client" style="margin-top:4px;"></div><div class="detail-desc" id="detail-origin" style="margin-top:2px;"></div></div>
     <div style="display:flex;gap:7px;flex-shrink:0;flex-wrap:wrap;">
       <button class="btn btn-ghost" onclick="openEditProject()">✏️ Modifier</button>
       <button class="btn btn-ghost" onclick="duplicateCurrentProject()" title="Dupliquer ce projet">⧉ Dupliquer</button>
@@ -732,7 +733,7 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
   <div id="dtab-matieres" class="detail-pane active">
     <div style="margin-bottom:10px;"><button class="btn btn-primary" onclick="openAddPoste()">＋ Ajouter un poste</button></div>
-    <table class="postes-table" id="postes-table"><thead><tr><th>Désignation</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>Prix unit.</th><th style="text-align:right">Total</th><th></th></tr></thead><tbody id="postes-tbody"></tbody></table>
+    <table class="postes-table" id="postes-table"><thead><tr><th>Désignation</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>Prix unit.</th><th style="text-align:right">Estimé</th><th style="text-align:right">Réel</th><th></th></tr></thead><tbody id="postes-tbody"></tbody></table>
     <div id="postes-empty" class="empty" style="display:none;padding:24px;"><p>Aucune matière ajoutée.</p></div>
   </div>
   <div id="dtab-resines" class="detail-pane">
@@ -876,9 +877,12 @@ window.addEventListener('unhandledrejection', function(e) {
         <div class="section-title">Coût résine estimé</div>
         <div class="pricing-row"><label>Prix résine (€/kg)</label><input type="number" id="price-per-kg" value="35" step=".5" oninput="calcResinCost()"></div>
         <div class="pricing-row"><label>Densité résine (kg/L)</label><input type="number" id="resin-density" value="1.1" step=".01" oninput="calcResinCost()"></div>
-        <div class="pricing-row"><label>Ratio résine/durcisseur (A:B)</label>
-          <input type="number" id="ratio-select" value="2" min="0.5" max="10" step="0.5" oninput="calcResinCost()" placeholder="ex: 2 pour 2:1" style="width:100px;">
-          <small style="font-size:10px;color:var(--text-dim);margin-left:6px;">Saisie manuelle</small>
+        <div class="pricing-row"><label>Ratio A : B (saisie libre)</label>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input type="number" id="ratio-a" value="100" min="0.1" step="0.1" oninput="calcResinCost()" placeholder="A" style="width:70px;"> <span style="color:var(--text-dim);">:</span>
+            <input type="number" id="ratio-b" value="50" min="0.1" step="0.1" oninput="calcResinCost()" placeholder="B" style="width:70px;">
+          </div>
+          <small style="font-size:10px;color:var(--text-dim);">Ex: 100:42 pour un ratio en pourcentage</small>
         </div>
         <div class="cost-result-box">
           <div class="cr-title">Décomposition</div>
@@ -888,9 +892,11 @@ window.addEventListener('unhandledrejection', function(e) {
           <div class="cr-line"><span>Partie B (durcisseur)</span><span id="cr-partB">—</span></div>
           <div class="cr-line total"><span>Coût total résine</span><span id="cr-total">—</span></div>
         </div>
-        <div style="margin-top:12px;text-align:center;">
+        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
           <button class="btn btn-purple" onclick="sendCalcToDevis()">📋 Envoyer vers un devis</button>
+          <span style="display:flex;align-items:center;gap:6px;"><input type="text" id="sim-label" placeholder="Libellé simulation" style="width:140px;padding:6px 10px;"><button class="btn btn-ghost" onclick="saveSimulation()">💾 Sauvegarder</button></span>
         </div>
+        <div id="calc-simulations-list" style="margin-top:14px;"></div>
       </div>
       <div class="pricing-panel" style="margin-top:16px;">
         <div class="section-title">Conseils pratiques</div>
@@ -955,6 +961,16 @@ window.addEventListener('unhandledrejection', function(e) {
   <div class="planning-grid" id="planning-dow-headers"></div>
   <div class="planning-grid" id="planning-days" style="margin-top:3px;"></div>
   <div class="planning-legend" id="planning-legend"></div>
+</div>
+
+<!-- CATALOGUE RÉSINE -->
+<div id="section-catalogue-resine" class="section">
+  <div class="page-header"><h1>Catalogue de résines</h1><p>// résines utilisées, sélectionnables dans un projet, un devis ou la calculatrice</p></div>
+  <div style="margin-bottom:18px;display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="openNewResine()">＋ Nouvelle résine</button>
+  </div>
+  <div class="resines-grid" id="catalogue-resines-grid"></div>
+  <div id="catalogue-resines-empty" class="empty" style="display:none;"><div class="empty-icon">🧪</div><h3>Aucune résine au catalogue</h3><p>Ajoutez des résines ici ou depuis un projet ; elles seront réutilisables dans la calculatrice et les devis.</p></div>
 </div>
 
 <!-- STATISTIQUES -->
@@ -1169,6 +1185,12 @@ window.addEventListener('unhandledrejection', function(e) {
       <div class="resines-grid" id="resines-grid"></div>
       <div id="resines-empty" class="empty" style="display:none;"><div class="empty-icon">🧪</div><h3>Aucune résine</h3><p>Ajoutez vos résines avec leurs caractéristiques pour les retrouver dans la calculatrice.</p></div>
     </div>
+    <div class="settings-panel" style="margin-top:20px;">
+      <div class="section-title">Catalogue pigments</div>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">S'enrichit des lignes « Pigment » saisies dans les projets et devis.</p>
+      <div id="params-pigments-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      <div id="params-pigments-empty" style="display:none;font-size:12px;color:var(--text-dim);">Aucun pigment encore. Ajoutez un poste ou une ligne devis en catégorie « Pigment ».</div>
+    </div>
       <span id="settings-saved" style="color:var(--green);font-family:'DM Mono',monospace;font-size:11px;display:none;">✓ Enregistré</span>
     </div>
   </div>
@@ -1211,6 +1233,19 @@ window.addEventListener('unhandledrejection', function(e) {
     <div class="form-group"><label>Client lié</label>
       <select id="proj-client-link"><option value="">— Aucun —</option></select>
     </div>
+    <div class="form-group"><label>Origine du contact</label>
+      <select id="proj-contact-origin">
+        <option value="">— Non renseigné —</option>
+        <option value="bouche-a-oreille">Bouche-à-oreille</option>
+        <option value="instagram">Instagram</option>
+        <option value="salon">Salon / foire</option>
+        <option value="site">Site web</option>
+        <option value="vinted">Vinted</option>
+        <option value="etsy">Etsy</option>
+        <option value="leboncoin">Le Bon Coin</option>
+        <option value="autre">Autre</option>
+      </select>
+    </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-project')">Annuler</button>
       <button class="btn btn-primary" onclick="saveProject()">Enregistrer</button>
@@ -1230,19 +1265,30 @@ window.addEventListener('unhandledrejection', function(e) {
     </div>
     <div class="form-row">
       <div class="form-group"><label>Catégorie</label>
-        <select id="poste-cat">
+        <select id="poste-cat" onchange="togglePostePigmentFields()">
           <option value="wood">🪵 Bois</option><option value="mold">📐 Moule</option>
           <option value="tape">🏷 Scotch/Film</option><option value="finish">✨ Finition</option>
-          <option value="tools">🔧 Outillage</option><option value="misc">📦 Divers</option>
+          <option value="pigment">🎨 Pigment</option><option value="tools">🔧 Outillage</option><option value="misc">📦 Divers</option>
         </select>
       </div>
       <div class="form-group"><label>Unité</label>
         <select id="poste-unit"><option>kg</option><option>L</option><option>m²</option><option>m</option><option>ml</option><option>pièce</option><option>rouleau</option><option>boîte</option><option>lot</option><option>forfait</option></select>
       </div>
     </div>
+    <div id="poste-pigment-fields" style="display:none;margin-bottom:12px;padding:12px;background:var(--surface2);border-radius:8px;">
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Ratio poids pigment / poids résine → quantité calculée</div>
+      <div class="form-row">
+        <div class="form-group"><label>Ratio (% du poids résine)</label><input type="number" id="poste-pigment-ratio" value="2" min="0" max="100" step="0.1" oninput="calcPostePigmentQty()" placeholder="2"></div>
+        <div class="form-group"><label>Poids résine (kg)</label><input type="number" id="poste-pigment-resin-kg" value="" min="0" step="0.01" oninput="calcPostePigmentQty()" placeholder="—"></div>
+      </div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label>Quantité</label><input type="number" id="poste-qty" value="1" min="0" step=".1"></div>
       <div class="form-group"><label>Prix unitaire (€)</label><input type="number" id="poste-price" value="" min="0" step=".01" placeholder="0,00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Qté réelle (optionnel)</label><input type="number" id="poste-qty-actual" value="" min="0" step=".1" placeholder="—"></div>
+      <div class="form-group"><label>Prix unit. réel (€, optionnel)</label><input type="number" id="poste-price-actual" value="" min="0" step=".01" placeholder="—"></div>
     </div>
     <div class="form-group"><label>Note</label><input type="text" id="poste-note" placeholder="Fournisseur, référence…"></div>
     <div class="form-actions">
@@ -1269,10 +1315,18 @@ window.addEventListener('unhandledrejection', function(e) {
     </div>
     <div class="form-row">
       <div class="form-group"><label>Densité (kg/L)</label><input type="number" id="resin-dens" value="1.1" min="0" step=".01" oninput="previewResin()"></div>
-      <div class="form-group"><label>Ratio résine/durcisseur (A:B)</label>
-        <input type="number" id="resin-ratio" value="2" min="0.5" max="10" step="0.5" placeholder="ex: 2 pour 2:1" oninput="previewResin()" style="width:100%;">
-        <small style="font-size:10px;color:var(--text-dim);">Saisie manuelle (ex: 2 = 2:1)</small>
+      <div class="form-group"><label>Ratio A : B (saisie libre)</label>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="number" id="resin-ratio-a" value="100" min="0.1" step="0.1" placeholder="A" oninput="previewResin()" style="width:80px;">
+          <span style="color:var(--text-dim);">:</span>
+          <input type="number" id="resin-ratio-b" value="50" min="0.1" step="0.1" placeholder="B" oninput="previewResin()" style="width:80px;">
+        </div>
+        <small style="font-size:10px;color:var(--text-dim);">Ex: 100:42</small>
       </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Volume réel (L, optionnel)</label><input type="number" id="resin-vol-actual" value="" min="0" step=".01" placeholder="—"></div>
+      <div class="form-group"><label>Prix au kg réel (€, optionnel)</label><input type="number" id="resin-pkg-actual" value="" min="0" step=".5" placeholder="—"></div>
     </div>
     <div class="form-group"><label>Note</label><input type="text" id="resin-note" placeholder="Couleur, utilisation…"></div>
     <div id="resin-preview" style="margin-top:8px;padding:10px;background:var(--resin-dim);border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;color:var(--resin);display:none;line-height:1.7;"></div>
@@ -1334,15 +1388,22 @@ window.addEventListener('unhandledrejection', function(e) {
     <div class="form-group"><label>Désignation</label><input type="text" id="lg-name" placeholder="Plateau chêne, résine, pieds…"></div>
     <div class="form-row">
       <div class="form-group"><label>Catégorie</label>
-        <select id="lg-cat">
+        <select id="lg-cat" onchange="toggleLignePigmentFields()">
           <option value="wood">🪵 Bois</option><option value="resin">🧪 Résine</option>
           <option value="mold">📐 Moule</option><option value="finish">✨ Finition</option>
-          <option value="tools">🔧 Outillage</option><option value="labor">👷 Main d'œuvre</option>
+          <option value="pigment">🎨 Pigment</option><option value="tools">🔧 Outillage</option><option value="labor">👷 Main d'œuvre</option>
           <option value="misc">📦 Divers</option>
         </select>
       </div>
       <div class="form-group"><label>Unité</label>
         <select id="lg-unit"><option>forfait</option><option>pièce</option><option>kg</option><option>L</option><option>m²</option><option>m</option><option>heure</option></select>
+      </div>
+    </div>
+    <div id="ligne-pigment-fields" style="display:none;margin-bottom:12px;padding:12px;background:var(--surface2);border-radius:8px;">
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Ratio poids pigment / poids résine → quantité calculée</div>
+      <div class="form-row">
+        <div class="form-group"><label>Ratio (% du poids résine)</label><input type="number" id="lg-pigment-ratio" value="2" min="0" max="100" step="0.1" oninput="calcLignePigmentQty()" placeholder="2"></div>
+        <div class="form-group"><label>Poids résine (kg)</label><input type="number" id="lg-pigment-resin-kg" value="" min="0" step="0.01" oninput="calcLignePigmentQty()" placeholder="—"></div>
       </div>
     </div>
     <div class="form-row">
@@ -1428,6 +1489,12 @@ window.addEventListener('unhandledrejection', function(e) {
       <button class="btn btn-ghost btn-sm" onclick="addExtraLine()" style="margin-top:8px;">＋ Ajouter un poste libre</button>
     </div>
 
+    <div class="form-group" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;text-transform:none;">
+        <input type="checkbox" id="pdf-mask-detail" style="width:18px;height:18px;">
+        <span>Afficher uniquement le total (masquer le détail résines, bois, postes)</span>
+      </label>
+    </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-print-config')">Annuler</button>
       <button class="btn btn-primary" onclick="generatePDF()">🖨️ Générer le PDF</button>
@@ -1466,7 +1533,7 @@ async function loadState(){
   }catch(e){}
 }
 async function saveState(){
-  const data={projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[]};
+  const data={projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[],simulations:state.simulations||[],pigments:state.pigments||[]};
   // 1. Save to Firebase (primary - sync across all devices)
   try{
     if(window._fbStateDoc && window._fbSetDoc){
@@ -1501,12 +1568,14 @@ function showSection(id){
   updateMobileNav(id);
   if(id==='projets')renderProjects();
   if(id==='devis')renderDevisList();
-  if(id==='parametres'){loadSettingsUI();switchParamsTab('entreprise');}
+  if(id==='parametres'){loadSettingsUI();switchParamsTab('entreprise');renderParamsPigments();}
   if(id==='clients')renderClients();
   if(id==='dashboard')renderDashboard();
   if(id==='stocks')renderStocks();
   if(id==='planning')renderPlanning();
   if(id==='stats')renderStats();
+  if(id==='catalogue-resine')renderCatalogueResines();
+  if(id==='calculatrice')renderCalcSimulations();
   if(id==='scanner'){const sel=document.getElementById('scan-project-select');if(sel){sel.innerHTML='<option value="">— Choisir un projet —</option>';state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});}}
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
@@ -1532,20 +1601,21 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function gv(id){const e=document.getElementById(id);return e?parseFloat(e.value)||0:0;}
 function genRef(){return 'DE-'+new Date().getFullYear()+'-'+String((state.devis||[]).length+1).padStart(3,'0');}
 
-const CC={wood:'#a0632a',resin:'#3ecfcf',mold:'#9b59b6',tape:'#e67e22',finish:'#27ae60',tools:'#2980b9',labor:'#e74c3c',misc:'#7f8c8d'};
-const CL={wood:'Bois',resin:'Résine',mold:'Moule',tape:'Scotch/Film',finish:'Finition',tools:'Outillage',labor:'M.O.',misc:'Divers'};
-const CE={wood:'🪵',resin:'🧪',mold:'📐',tape:'🏷',finish:'✨',tools:'🔧',labor:'👷',misc:'📦'};
+const CC={wood:'#a0632a',resin:'#3ecfcf',mold:'#9b59b6',tape:'#e67e22',finish:'#27ae60',tools:'#2980b9',labor:'#e74c3c',pigment:'#e91e63',misc:'#7f8c8d'};
+const CL={wood:'Bois',resin:'Résine',mold:'Moule',tape:'Scotch/Film',finish:'Finition',tools:'Outillage',labor:'M.O.',pigment:'Pigment',misc:'Divers'};
+const CE={wood:'🪵',resin:'🧪',mold:'📐',tape:'🏷',finish:'✨',tools:'🔧',labor:'👷',pigment:'🎨',misc:'📦'};
 const SL={rectangle:'Rectangle',round:'Rond',oval:'Ovale',triangle:'Triangle',lshape:'Forme L',ring:'Anneau',''  :'—'};
 
 // ==================== PROJECTS ====================
-function openNewProject(){state.editMode=false;document.getElementById('modal-project-title').textContent='Nouveau projet';['proj-name','proj-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('proj-shape').value='';const clSel=document.getElementById('proj-client-link');if(clSel){clSel.innerHTML='<option value="">— Aucun —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value='';}openModal('modal-project');}
-function openEditProject(){const p=getCurrentProject();if(!p)return;state.editMode=true;document.getElementById('modal-project-title').textContent='Modifier';document.getElementById('proj-name').value=p.name;document.getElementById('proj-desc').value=p.desc||'';document.getElementById('proj-shape').value=p.shape||'';const clSel=document.getElementById('proj-client-link');if(clSel){clSel.innerHTML='<option value="">— Aucun —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value=p.clientId||'';}openModal('modal-project');}
+function openNewProject(){state.editMode=false;document.getElementById('modal-project-title').textContent='Nouveau projet';['proj-name','proj-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('proj-shape').value='';document.getElementById('proj-contact-origin').value='';const clSel=document.getElementById('proj-client-link');if(clSel){clSel.innerHTML='<option value="">— Aucun —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value='';}openModal('modal-project');}
+function openEditProject(){const p=getCurrentProject();if(!p)return;state.editMode=true;document.getElementById('modal-project-title').textContent='Modifier';document.getElementById('proj-name').value=p.name;document.getElementById('proj-desc').value=p.desc||'';document.getElementById('proj-shape').value=p.shape||'';document.getElementById('proj-contact-origin').value=p.contactOrigin||'';const clSel=document.getElementById('proj-client-link');if(clSel){clSel.innerHTML='<option value="">— Aucun —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value=p.clientId||'';}openModal('modal-project');}
 async function saveProject(){
   const name=document.getElementById('proj-name').value.trim();if(!name)return alert('Saisissez un nom.');
   const desc=document.getElementById('proj-desc').value.trim(),shape=document.getElementById('proj-shape').value;
   const clSel=document.getElementById('proj-client-link');const clientId=clSel&&clSel.value?parseInt(clSel.value,10):null;
-  if(state.editMode){const p=getCurrentProject();p.name=name;p.desc=desc;p.shape=shape;p.clientId=clientId||undefined;}
-  else state.projects.push({id:Date.now(),name,desc,shape,clientId:clientId||undefined,postes:[],resins:[],times:[]});
+  const contactOrigin=document.getElementById('proj-contact-origin').value||undefined;
+  if(state.editMode){const p=getCurrentProject();p.name=name;p.desc=desc;p.shape=shape;p.clientId=clientId||undefined;p.contactOrigin=contactOrigin;}
+  else state.projects.push({id:Date.now(),name,desc,shape,clientId:clientId||undefined,contactOrigin:contactOrigin,postes:[],resins:[],times:[]});
   await saveState();closeModal('modal-project');state.editMode?renderDetail():renderProjects();
 }
 async function deleteCurrentProject(){if(!confirm('Supprimer ce projet ?'))return;state.projects=state.projects.filter(p=>p.id!==state.currentId);await saveState();showSection('projets');}
@@ -1581,6 +1651,8 @@ function renderDetail(){
   const nameEl=document.getElementById('detail-name');if(!nameEl)return;
   nameEl.textContent=p.name;
   document.getElementById('detail-desc').textContent=(p.desc||'—')+(p.shape?' · '+SL[p.shape]:'');
+  var clientEl=document.getElementById('detail-client');if(clientEl){var cl=p.clientId?(state.clients||[]).find(function(c){return c.id===p.clientId;}):null;clientEl.textContent=cl?('👤 '+(cl.firstname||'').trim()+' '+(cl.lastname||'').trim()).trim():'';clientEl.style.display=cl?'block':'none';}
+  var originEl=document.getElementById('detail-origin');if(originEl){var ol={bouche-a-oreille:'Bouche-à-oreille',instagram:'Instagram',salon:'Salon / foire',site:'Site web',vinted:'Vinted',etsy:'Etsy',leboncoin:'Le Bon Coin',autre:'Autre'};originEl.textContent=p.contactOrigin?('📍 '+ (ol[p.contactOrigin]||p.contactOrigin)):'';originEl.style.display=p.contactOrigin?'block':'none';}
   const mat=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0);
   const res=(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
   const mins=(p.times||[]).reduce((s,t)=>s+t.mins,0);
@@ -1598,18 +1670,23 @@ function renderPostes(p){
   if(!(p.postes||[]).length){ if(table)table.style.display='none'; if(empty)empty.style.display='block'; return; }
   if(table)table.style.display=''; if(empty)empty.style.display='none';
   p.postes.forEach((r,i)=>{
+    const est=r.qty*r.price;
+    const qtyR=r.actualQty!=null?r.actualQty:r.qty,priceR=r.actualPrice!=null?r.actualPrice:r.price;
+    const realTotal=qtyR*priceR;const hasReal=(r.actualQty!=null||r.actualPrice!=null);
     const tr=document.createElement('tr');
     tr.innerHTML=`<td><div class="poste-name"><span class="poste-dot" style="background:${CC[r.cat]||'#888'}"></span>${esc(r.name)}${r.note?'<span style="color:var(--text-dim);font-size:10px;font-style:italic;">'+esc(r.note)+'</span>':''}</div></td>
       <td><span class="tag" style="background:${CC[r.cat]||'#333'}22;color:${CC[r.cat]||'#888'}">${CE[r.cat]||''} ${CL[r.cat]||r.cat}</span></td>
       <td style="font-family:DM Mono,monospace">${r.qty}</td><td style="color:var(--text-dim)">${r.unit}</td>
       <td style="font-family:DM Mono,monospace">${fmtEur(r.price)}</td>
-      <td class="poste-price">${fmtEur(r.qty*r.price)}</td>
+      <td class="poste-price">${fmtEur(est)}</td>
+      <td class="poste-price">${hasReal?fmtEur(realTotal):'—'}</td>
       <td><button class="btn btn-ghost btn-sm" title="Modifier" onclick="openEditPoste(${i})">✏️</button><button class="delete-row" onclick="deletePoste(${i})">×</button></td>`;
     tbody.appendChild(tr);
   });
 }
 
 function rcv(r){if(!r||!r.vol)return 0;return r.vol*(r.dens||1.1)*(r.pkg||0);}
+function rcvActual(r){if(!r)return 0;const v=r.volActual!=null?r.volActual:r.vol;const p=r.pkgActual!=null?r.pkgActual:r.pkg;if(!v)return 0;return v*(r.dens||1.1)*(p||0);}
 
 function renderResins(p){
   const list=document.getElementById('resins-list'),empty=document.getElementById('resins-empty');
@@ -1619,10 +1696,14 @@ function renderResins(p){
   else{
     if(empty)empty.style.display='none';
     p.resins.forEach((r,i)=>{
-      const cost=rcv(r),mass=r.vol*(r.dens||1.1),ratio=r.ratio||2,pA=mass/(ratio+1)*ratio,pB=mass/(ratio+1);
+      const cost=rcv(r),costReal=rcvActual(r);const hasReal=r.volActual!=null||r.pkgActual!=null;
+      const mass=r.vol*(r.dens||1.1);
+      const ra=r.ratioA!=null?r.ratioA:(r.ratio||2),rb=r.ratioB!=null?r.ratioB:1;
+      const tot=ra+rb;const pA=tot>0?mass*ra/tot:mass;const pB=tot>0?mass*rb/tot:0;
+      const ratioLabel=r.ratioA!=null&&r.ratioB!=null?ra+':'+rb:(r.ratio||2)+':1';
       const card=document.createElement('div');card.className='resin-card';
-      card.innerHTML=`<div class="resin-card-header"><span class="resin-card-name">🧪 ${esc(r.name)}</span><div style="display:flex;gap:8px;align-items:center;"><span class="resin-card-cost">${fmtEur(cost)}</span><button class="delete-row" onclick="deleteResin(${i})">×</button></div></div>
-        <div class="resin-stats"><span>Vol: <strong>${r.vol} L</strong></span><span>Masse: <strong>${mass.toFixed(2)} kg</strong></span><span>Ratio: <strong>${ratio}:1</strong></span><span>A: <strong>${pA.toFixed(2)} kg</strong></span><span>B: <strong>${pB.toFixed(2)} kg</strong></span><span>Prix: <strong>${r.pkg} €/kg</strong></span>${r.note?'<span>Note: <strong>'+esc(r.note)+'</strong></span>':''}</div>`;
+      card.innerHTML=`<div class="resin-card-header"><span class="resin-card-name">🧪 ${esc(r.name)}</span><div style="display:flex;gap:8px;align-items:center;"><span class="resin-card-cost">Estimé: ${fmtEur(cost)}${hasReal?' · Réel: '+fmtEur(costReal):''}</span><button class="btn btn-ghost btn-sm" onclick="openEditResin(${i})" title="Modifier">✏️</button><button class="delete-row" onclick="deleteResin(${i})">×</button></div></div>
+        <div class="resin-stats"><span>Vol: <strong>${r.vol} L</strong></span><span>Masse: <strong>${mass.toFixed(2)} kg</strong></span><span>Ratio: <strong>${ratioLabel}</strong></span><span>A: <strong>${(pA||0).toFixed(2)} kg</strong></span><span>B: <strong>${(pB||0).toFixed(2)} kg</strong></span><span>Prix: <strong>${r.pkg} €/kg</strong></span>${r.note?'<span>Note: <strong>'+esc(r.note)+'</strong></span>':''}</div>`;
       list.appendChild(card);
     });
   }
@@ -1673,7 +1754,7 @@ function renderTimes(p){
   empty.style.display='none';
   p.times.forEach((t,i)=>{
     const div=document.createElement('div');div.className='time-entry';
-    div.innerHTML=`<div class="time-entry-info"><span class="time-entry-desc">${esc(t.desc||'Session')}</span><span class="time-entry-date">${t.date||''}</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="time-entry-duration">${fmtTime(t.mins)}</span><button class="delete-row" onclick="deleteTime(${i})">×</button></div>`;
+    div.innerHTML=`<div class="time-entry-info"><span class="time-entry-desc">${esc(t.desc||'Session')}</span><span class="time-entry-date">${t.date||''}</span></div><div style="display:flex;align-items:center;gap:8px;"><span class="time-entry-duration">${fmtTime(t.mins)}</span><button class="btn btn-ghost btn-sm" onclick="openEditTime(${i})" title="Modifier">✏️</button><button class="delete-row" onclick="deleteTime(${i})">×</button></div>`;
     log.appendChild(div);
   });
 }
@@ -1688,31 +1769,37 @@ function renderChart(p){
 }
 
 // POSTES
-function openAddPoste(){state.editPosteIndex=undefined;document.getElementById('modal-poste-title').textContent='Ajouter un poste de coût';document.getElementById('modal-poste-submit').textContent='Ajouter';['poste-name','poste-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('poste-qty').value='1';document.getElementById('poste-price').value='';openModal('modal-poste');}
-function openEditPoste(i){const p=getCurrentProject();const r=(p.postes||[])[i];if(!r)return;state.editPosteIndex=i;document.getElementById('modal-poste-title').textContent='Modifier le poste';document.getElementById('modal-poste-submit').textContent='Enregistrer';document.getElementById('poste-name').value=r.name||'';document.getElementById('poste-cat').value=r.cat||'misc';document.getElementById('poste-qty').value=r.qty||1;document.getElementById('poste-unit').value=r.unit||'forfait';document.getElementById('poste-price').value=r.price||'';document.getElementById('poste-note').value=r.note||'';openModal('modal-poste');}
+function togglePostePigmentFields(){var cat=document.getElementById('poste-cat').value;var el=document.getElementById('poste-pigment-fields');if(el)el.style.display=cat==='pigment'?'block':'none';}
+function calcPostePigmentQty(){var r=parseFloat(document.getElementById('poste-pigment-ratio').value)||0;var w=parseFloat(document.getElementById('poste-pigment-resin-kg').value)||0;var q=document.getElementById('poste-qty');if(q&&r&&w)q.value=Math.round(w*r/100*1000)/1000;}
+function openAddPoste(){state.editPosteIndex=undefined;document.getElementById('modal-poste-title').textContent='Ajouter un poste de coût';document.getElementById('modal-poste-submit').textContent='Ajouter';['poste-name','poste-note','poste-qty-actual','poste-price-actual','poste-pigment-ratio','poste-pigment-resin-kg'].forEach(id=>{var el=document.getElementById(id);if(el)el.value=id==='poste-pigment-ratio'?'2':'';});document.getElementById('poste-qty').value='1';document.getElementById('poste-price').value='';togglePostePigmentFields();openModal('modal-poste');}
+function openEditPoste(i){const p=getCurrentProject();const r=(p.postes||[])[i];if(!r)return;state.editPosteIndex=i;document.getElementById('modal-poste-title').textContent='Modifier le poste';document.getElementById('modal-poste-submit').textContent='Enregistrer';document.getElementById('poste-name').value=r.name||'';document.getElementById('poste-cat').value=r.cat||'misc';document.getElementById('poste-qty').value=r.qty||1;document.getElementById('poste-unit').value=r.unit||'forfait';document.getElementById('poste-price').value=r.price||'';var aq=document.getElementById('poste-qty-actual');var ap=document.getElementById('poste-price-actual');if(aq)aq.value=r.actualQty!=null?r.actualQty:'';if(ap)ap.value=r.actualPrice!=null?r.actualPrice:'';document.getElementById('poste-note').value=r.note||'';var pr=document.getElementById('poste-pigment-ratio');var pk=document.getElementById('poste-pigment-resin-kg');if(pr)pr.value=r.ratioPct!=null?r.ratioPct:2;if(pk)pk.value=r.resinWeight!=null?r.resinWeight:'';togglePostePigmentFields();openModal('modal-poste');}
 async function savePoste(){
   const name=document.getElementById('poste-name').value.trim();if(!name)return alert('Saisissez une désignation.');
   const qty=parseFloat(document.getElementById('poste-qty').value)||1,price=parseFloat(document.getElementById('poste-price').value)||0;
   const cat=document.getElementById('poste-cat').value,unit=document.getElementById('poste-unit').value,note=document.getElementById('poste-note').value.trim();
-  const p=getCurrentProject();const data={name,cat,qty,unit,price,note,_ts:Date.now()};
+  var actualQty=document.getElementById('poste-qty-actual').value;actualQty=actualQty===''?undefined:parseFloat(actualQty);
+  var actualPrice=document.getElementById('poste-price-actual').value;actualPrice=actualPrice===''?undefined:parseFloat(actualPrice);
+  const p=getCurrentProject();const data={name,cat,qty,unit,price,note,_ts:Date.now()};if(actualQty!=null)data.actualQty=actualQty;if(actualPrice!=null)data.actualPrice=actualPrice;if(cat==='pigment'){var rp=document.getElementById('poste-pigment-ratio');var rw=document.getElementById('poste-pigment-resin-kg');if(rp)data.ratioPct=parseFloat(rp.value)||0;if(rw&&rw.value)data.resinWeight=parseFloat(rw.value);addPigmentToCatalogue(name);}
   if(state.editPosteIndex!==undefined){p.postes[state.editPosteIndex]=data;state.editPosteIndex=undefined;}else p.postes.push(data);
   await saveState();closeModal('modal-poste');renderDetail();
 }
 async function deletePoste(i){const p=getCurrentProject();p.postes.splice(i,1);await saveState();renderDetail();}
 
 // RESINS
-function openAddResin(){['resin-name','resin-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('resin-vol').value='';document.getElementById('resin-mass').value='';document.getElementById('resin-pkg').value='35';document.getElementById('resin-dens').value='1.1';document.getElementById('resin-ratio').value='2';document.getElementById('resin-preview').style.display='none';openModal('modal-resin');}
+function openAddResin(){state.editResinIndex=undefined;['resin-name','resin-note','resin-vol-actual','resin-pkg-actual'].forEach(id=>{var e=document.getElementById(id);if(e)e.value='';});document.getElementById('resin-vol').value='';document.getElementById('resin-mass').value='';document.getElementById('resin-pkg').value='35';document.getElementById('resin-dens').value='1.1';document.getElementById('resin-ratio-a').value='100';document.getElementById('resin-ratio-b').value='50';document.getElementById('resin-preview').style.display='none';document.querySelector('#modal-resin h2').textContent='Ajouter une résine';document.querySelector('#modal-resin .btn-resin').textContent='Ajouter';openModal('modal-resin');}
+function openEditResin(i){const p=getCurrentProject();if(!p||!(p.resins||[])[i])return;const r=p.resins[i];state.editResinIndex=i;document.getElementById('resin-name').value=r.name||'';document.getElementById('resin-note').value=r.note||'';document.getElementById('resin-vol').value=r.vol||'';document.getElementById('resin-mass').value=(r.vol*(r.dens||1.1)).toFixed(2);document.getElementById('resin-pkg').value=r.pkg||35;document.getElementById('resin-dens').value=r.dens||1.1;document.getElementById('resin-ratio-a').value=r.ratioA!=null?r.ratioA:100;document.getElementById('resin-ratio-b').value=r.ratioB!=null?r.ratioB:50;var va=document.getElementById('resin-vol-actual');var pa=document.getElementById('resin-pkg-actual');if(va)va.value=r.volActual!=null?r.volActual:'';if(pa)pa.value=r.pkgActual!=null?r.pkgActual:'';document.getElementById('resin-preview').style.display='none';document.querySelector('#modal-resin h2').textContent='Modifier la résine';document.querySelector('#modal-resin .btn-resin').textContent='Enregistrer';previewResin();openModal('modal-resin');}
 function previewResin(){
   const volIn=parseFloat(document.getElementById('resin-vol').value)||0;
   const massIn=parseFloat(document.getElementById('resin-mass').value)||0;
   const pkg=parseFloat(document.getElementById('resin-pkg').value)||0;
   const dens=parseFloat(document.getElementById('resin-dens').value)||1.1;
-  const ratio=parseFloat(document.getElementById('resin-ratio').value)||2;
+  const ra=parseFloat(document.getElementById('resin-ratio-a').value)||100,rb=parseFloat(document.getElementById('resin-ratio-b').value)||50;
+  const tot=ra+rb;
   const mass=massIn>0?massIn:(volIn*dens);
   const vol=volIn>0?volIn:(massIn/dens);
   const prev=document.getElementById('resin-preview');
   if(!mass&&!vol){prev.style.display='none';return;}
-  const cost=mass*pkg,pA=mass/(ratio+1)*ratio,pB=mass/(ratio+1);
+  const cost=mass*pkg,pA=tot>0?mass*ra/tot:mass,pB=tot>0?mass*rb/tot:0;
   prev.style.display='block';
   prev.innerHTML=`Masse : ${mass.toFixed(2)} kg · Vol : ${vol.toFixed(2)} L · A : ${pA.toFixed(2)} kg · B : ${pB.toFixed(2)} kg · <strong>Coût : ${fmtEur(cost)}</strong>`;
 }
@@ -1722,20 +1809,25 @@ async function saveResin(){
   const dens=parseFloat(document.getElementById('resin-dens').value)||1.1;
   const vol=volIn>0?volIn:(massIn>0?massIn/dens:0);
   if(!vol&&!massIn)return alert('Saisissez le volume (L) ou la masse (kg).');
-  const pkg=parseFloat(document.getElementById('resin-pkg').value)||0,ratio=parseFloat(document.getElementById('resin-ratio').value)||2,note=document.getElementById('resin-note').value.trim();
+  const pkg=parseFloat(document.getElementById('resin-pkg').value)||0,ra=parseFloat(document.getElementById('resin-ratio-a').value)||100,rb=parseFloat(document.getElementById('resin-ratio-b').value)||50,note=document.getElementById('resin-note').value.trim();
+  var volActual=document.getElementById('resin-vol-actual').value;volActual=volActual===''?undefined:parseFloat(volActual);
+  var pkgActual=document.getElementById('resin-pkg-actual').value;pkgActual=pkgActual===''?undefined:parseFloat(pkgActual);
   const p=getCurrentProject();if(!p.resins)p.resins=[];
-  p.resins.push({name,vol,pkg,dens,ratio,note});
+  const data={name,vol,pkg,dens,ratioA:ra,ratioB:rb,ratio:ra/rb,note};if(volActual!=null)data.volActual=volActual;if(pkgActual!=null)data.pkgActual=pkgActual;
+  if(state.editResinIndex!==undefined){p.resins[state.editResinIndex]=data;state.editResinIndex=undefined;}else p.resins.push(data);
   await saveState();closeModal('modal-resin');renderDetail();
 }
 async function deleteResin(i){const p=getCurrentProject();p.resins.splice(i,1);await saveState();renderDetail();}
 
 // TIMES
-function openAddTime(){document.getElementById('time-desc').value='';document.getElementById('time-hours').value='0';document.getElementById('time-minutes').value='30';document.getElementById('time-date').value=new Date().toISOString().split('T')[0];openModal('modal-time');}
+function openAddTime(){state.editTimeIndex=undefined;document.getElementById('time-desc').value='';document.getElementById('time-hours').value='0';document.getElementById('time-minutes').value='30';document.getElementById('time-date').value=new Date().toISOString().split('T')[0];document.querySelector('#modal-time h2').textContent='Session de travail';document.querySelector('#modal-time .btn-resin').textContent='Enregistrer';openModal('modal-time');}
+function openEditTime(i){const p=getCurrentProject();if(!p||!(p.times||[])[i])return;const t=p.times[i];state.editTimeIndex=i;document.getElementById('time-desc').value=t.desc||'';const h=Math.floor(t.mins/60),m=t.mins%60;document.getElementById('time-hours').value=h;document.getElementById('time-minutes').value=m;document.getElementById('time-date').value=t.date||new Date().toISOString().split('T')[0];document.querySelector('#modal-time h2').textContent='Modifier la session';document.querySelector('#modal-time .btn-resin').textContent='Enregistrer';openModal('modal-time');}
 async function saveTime(){
   const desc=document.getElementById('time-desc').value.trim();
   const h=parseInt(document.getElementById('time-hours').value)||0,m=parseInt(document.getElementById('time-minutes').value)||0;
   const mins=h*60+m;if(!mins)return alert('Saisissez une durée.');
-  getCurrentProject().times.push({desc,mins,date:document.getElementById('time-date').value});
+  const data={desc,mins,date:document.getElementById('time-date').value};
+  if(state.editTimeIndex!==undefined){getCurrentProject().times[state.editTimeIndex]=data;state.editTimeIndex=undefined;}else getCurrentProject().times.push(data);
   await saveState();closeModal('modal-time');renderDetail();
 }
 async function deleteTime(i){const p=getCurrentProject();p.times.splice(i,1);await saveState();renderDetail();}
@@ -1813,7 +1905,7 @@ function renderDevisDetail(){
   table.style.display='';empty.style.display='none';tot.style.display='block';
   d.lignes.forEach((l,i)=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(l.name)}</td><td><span class="tag" style="background:${CC[l.cat]||'#333'}22;color:${CC[l.cat]||'#888'}">${CE[l.cat]||''} ${CL[l.cat]||l.cat}</span></td><td style="font-family:DM Mono,monospace">${l.qty}</td><td style="color:var(--text-dim)">${l.unit}</td><td style="font-family:DM Mono,monospace">${fmtEur(l.price)}</td><td class="poste-price">${fmtEur(l.qty*l.price)}</td><td><button class="btn btn-ghost btn-sm" title="Modifier" onclick="openEditLigne(${i})">✏️</button><button class="delete-row" onclick="deleteLigne(${i})">×</button></td>`;
+    tr.innerHTML=`<td>${esc(l.name)}</td><td><span class="tag" style="background:${CC[l.cat]||'#333'}22;color:${CC[l.cat]||'#888'}">${CE[l.cat]||''} ${CL[l.cat]||l.cat}</span></td><td style="font-family:DM Mono,monospace">${l.qty}</td><td style="color:var(--text-dim)">${l.unit}</td><td style="font-family:DM Mono,monospace">${fmtEur(l.price)}</td><td class="poste-price">${fmtEur(l.qty*l.price)}</td><td><button class="btn btn-ghost btn-sm" title="Monter" onclick="moveLigneUp(${i})" ${i===0?'disabled':''}>▲</button><button class="btn btn-ghost btn-sm" title="Descendre" onclick="moveLigneDown(${i})" ${i===(d.lignes.length-1)?'disabled':''}>▼</button><button class="btn btn-ghost btn-sm" title="Modifier" onclick="openEditLigne(${i})">✏️</button><button class="delete-row" onclick="deleteLigne(${i})">×</button></td>`;
     tbody.appendChild(tr);
   });
   const tvaPct=parseFloat(document.getElementById('dv-tva-pct').value)||0,marginPct=parseFloat(document.getElementById('dv-margin-pct').value)||0;
@@ -1833,18 +1925,22 @@ function renderDevisDetail(){
 
 let _nt=null;function autoSaveDevisNotes(){clearTimeout(_nt);_nt=setTimeout(async()=>{const d=getCurrentDevis();if(d){d.notes=document.getElementById('dv-notes').value;await saveState();}},600);}
 
-function openAddLigne(){state.editLigneIndex=undefined;document.getElementById('modal-ligne-title').textContent='Ajouter une ligne';document.getElementById('modal-ligne-submit').textContent='Ajouter';document.getElementById('lg-name').value='';document.getElementById('lg-qty').value='1';document.getElementById('lg-price').value='';openModal('modal-ligne');}
-function openEditLigne(i){const d=getCurrentDevis();const l=(d.lignes||[])[i];if(!l)return;state.editLigneIndex=i;document.getElementById('modal-ligne-title').textContent='Modifier la ligne';document.getElementById('modal-ligne-submit').textContent='Enregistrer';document.getElementById('lg-name').value=l.name||'';document.getElementById('lg-cat').value=l.cat||'misc';document.getElementById('lg-qty').value=l.qty||1;document.getElementById('lg-unit').value=l.unit||'forfait';document.getElementById('lg-price').value=l.price||'';openModal('modal-ligne');}
+function toggleLignePigmentFields(){var cat=document.getElementById('lg-cat').value;var el=document.getElementById('ligne-pigment-fields');if(el)el.style.display=cat==='pigment'?'block':'none';}
+function calcLignePigmentQty(){var r=parseFloat(document.getElementById('lg-pigment-ratio').value)||0;var w=parseFloat(document.getElementById('lg-pigment-resin-kg').value)||0;var q=document.getElementById('lg-qty');if(q&&r&&w)q.value=Math.round(w*r/100*1000)/1000;}
+function openAddLigne(){state.editLigneIndex=undefined;document.getElementById('modal-ligne-title').textContent='Ajouter une ligne';document.getElementById('modal-ligne-submit').textContent='Ajouter';document.getElementById('lg-name').value='';document.getElementById('lg-qty').value='1';document.getElementById('lg-price').value='';['lg-pigment-ratio','lg-pigment-resin-kg'].forEach(id=>{var e=document.getElementById(id);if(e)e.value=id==='lg-pigment-ratio'?'2':'';});toggleLignePigmentFields();openModal('modal-ligne');}
+function openEditLigne(i){const d=getCurrentDevis();const l=(d.lignes||[])[i];if(!l)return;state.editLigneIndex=i;document.getElementById('modal-ligne-title').textContent='Modifier la ligne';document.getElementById('modal-ligne-submit').textContent='Enregistrer';document.getElementById('lg-name').value=l.name||'';document.getElementById('lg-cat').value=l.cat||'misc';document.getElementById('lg-qty').value=l.qty||1;document.getElementById('lg-unit').value=l.unit||'forfait';document.getElementById('lg-price').value=l.price||'';var pr=document.getElementById('lg-pigment-ratio');var pk=document.getElementById('lg-pigment-resin-kg');if(pr)pr.value=l.ratioPct!=null?l.ratioPct:2;if(pk)pk.value=l.resinWeight!=null?l.resinWeight:'';toggleLignePigmentFields();openModal('modal-ligne');}
 async function saveLigne(){
   const name=document.getElementById('lg-name').value.trim();if(!name)return alert('Saisissez une désignation.');
   const qty=parseFloat(document.getElementById('lg-qty').value)||1,price=parseFloat(document.getElementById('lg-price').value)||0;
   const cat=document.getElementById('lg-cat').value,unit=document.getElementById('lg-unit').value;
   const d=getCurrentDevis();if(!d.lignes)d.lignes=[];
-  const data={name,cat,qty,unit,price};
+  const data={name,cat,qty,unit,price};if(cat==='pigment'){var rp=document.getElementById('lg-pigment-ratio');var rw=document.getElementById('lg-pigment-resin-kg');if(rp)data.ratioPct=parseFloat(rp.value)||0;if(rw&&rw.value)data.resinWeight=parseFloat(rw.value);addPigmentToCatalogue(name);}
   if(state.editLigneIndex!==undefined){d.lignes[state.editLigneIndex]=data;state.editLigneIndex=undefined;}else d.lignes.push(data);
   await saveState();closeModal('modal-ligne');renderDevisDetail();
 }
 async function deleteLigne(i){const d=getCurrentDevis();d.lignes.splice(i,1);await saveState();renderDevisDetail();}
+async function moveLigneUp(i){const d=getCurrentDevis();if(!d||!d.lignes||i<=0)return;var t=d.lignes[i];d.lignes[i]=d.lignes[i-1];d.lignes[i-1]=t;await saveState();renderDevisDetail();}
+async function moveLigneDown(i){const d=getCurrentDevis();if(!d||!d.lignes||i>=d.lignes.length-1)return;var t=d.lignes[i];d.lignes[i]=d.lignes[i+1];d.lignes[i+1]=t;await saveState();renderDevisDetail();}
 function createDevisFromProject(){const p=getCurrentProject();showSection('devis');setTimeout(()=>openNewDevis(p?p.id:null),60);}
 
 // IMPORTS
@@ -1872,6 +1968,40 @@ function sendCalcToDevis(){
   if(!state.currentDevisId){alert('Ouvrez ou créez d\'abord un devis.');return;}
   openImportResinCalc();
 }
+function saveSimulation(){
+  const label=document.getElementById('sim-label').value.trim()||'Simulation '+(new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+  const vol=parseFloat(document.getElementById('calc-vol')?.textContent?.replace(',','.'))||0;
+  const costTxt=document.getElementById('cr-total')?.textContent||'0';
+  const cost=parseFloat(costTxt.replace(/[^\d,.]/g,'').replace(',','.'))||0;
+  const pk=parseFloat(document.getElementById('price-per-kg')?.value)||35;
+  const den=parseFloat(document.getElementById('resin-density')?.value)||1.1;
+  const ra=parseFloat(document.getElementById('ratio-a')?.value)||100;const rb=parseFloat(document.getElementById('ratio-b')?.value)||50;
+  const mass=vol*den;
+  if(!state.simulations)state.simulations=[];
+  state.simulations.push({label,vol,mass,ratioA:ra,ratioB:rb,density:den,pricePerKg:pk,cost,resinName:label,_ts:Date.now()});
+  saveState();document.getElementById('sim-label').value='';renderCalcSimulations();
+}
+function renderCalcSimulations(){
+  const cont=document.getElementById('calc-simulations-list');if(!cont)return;
+  if(!(state.simulations||[]).length){cont.innerHTML='';return;}
+  cont.innerHTML='<div class="section-title" style="margin-bottom:8px;">Simulations sauvegardées</div>'+state.simulations.map((s,i)=>'<div class="resin-card" style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;"><span><strong>'+esc(s.label)+'</strong> — '+s.vol+' L · '+fmtEur(s.cost)+'</span><span><button class="btn btn-ghost btn-sm" onclick="sendSimulationToProject('+i+')">→ Projet</button><button class="btn btn-ghost btn-sm" onclick="sendSimulationToDevis('+i+')">→ Devis</button><button class="btn btn-ghost btn-sm" onclick="deleteSimulation('+i+')" title="Supprimer">×</button></span></div></div>').join('');
+}
+async function sendSimulationToProject(i){
+  const s=(state.simulations||[])[i];if(!s)return;
+  const p=getCurrentProject();if(!p){alert('Ouvrez d\'abord un projet.');return;}
+  if(!p.resins)p.resins=[];
+  p.resins.push({name:s.resinName||s.label,vol:s.vol,dens:s.density||1.1,pkg:s.pricePerKg||35,ratioA:s.ratioA,ratioB:s.ratioB});
+  await saveState();if(typeof renderDetail==='function')renderDetail();
+}
+async function sendSimulationToDevis(i){
+  const s=(state.simulations||[])[i];if(!s)return;
+  const d=getCurrentDevis();if(!d){alert('Ouvrez d\'abord un devis.');return;}
+  if(!d.lignes)d.lignes=[];
+  const pricePerL=s.vol?s.cost/s.vol:0;
+  d.lignes.push({name:'Résine : '+(s.resinName||s.label),cat:'resin',qty:s.vol,unit:'L',price:pricePerL});
+  await saveState();if(typeof renderDevisDetail==='function')renderDevisDetail();
+}
+function deleteSimulation(i){if(!state.simulations)return;state.simulations.splice(i,1);saveState();renderCalcSimulations();}
 
 function openImportMoldAvg(){
   const avg=computeAvgMold();const cont=document.getElementById('mold-avg-modal-content');
@@ -1919,6 +2049,8 @@ const DEFAULT_CGV=`1. Objet — Les présentes CGV s'appliquent à toutes les cr
 
 function getSt(){return Object.assign({company:"Le bois d\'Olivier",name:'Olivier CASTELLETA',addr1:'9 Rue Frédéric Mistral',addr2:'30300 FOURQUES',email:'leboisdoliviercreations@gmail.com',tel:'06-21-07-35-89',siret:'',acompte:50,validite:30,delai:"4 à 6 semaines à compter du règlement d'acompte",cgv:DEFAULT_CGV},state.settings||{});}
 
+function addPigmentToCatalogue(name){if(!name||!name.trim())return;if(!state.pigments)state.pigments=[];if(state.pigments.indexOf(name.trim())===-1){state.pigments.push(name.trim());saveState();}}
+function renderParamsPigments(){var cont=document.getElementById('params-pigments-list');var empty=document.getElementById('params-pigments-empty');if(!cont)return;cont.innerHTML='';var list=state.pigments||[];if(!list.length){if(empty)empty.style.display='block';return;}if(empty)empty.style.display='none';list.forEach((n,i)=>{var span=document.createElement('span');span.className='tag';span.style.background='#e91e6322';span.style.color='#e91e63';span.textContent='🎨 '+n;cont.appendChild(span);});}
 function loadSettingsUI(){
   const s=getSt();
   const fields=['company','name','addr1','addr2','email','tel','siret','acompte','validite','delai','cgv'];
@@ -1957,7 +2089,7 @@ let _extraLines=[];
 
 function openPrintConfig(){
   const d=getCurrentDevis();if(!d)return;
-  // Plateau label default = devis name
+  document.getElementById('pdf-mask-detail').checked=!!d._pdfMaskDetail;
   document.getElementById('pdf-plateau-label').value=d._pdfPlateauLabel||d.name||'';
   document.getElementById('pdf-plateau-details').value=d._pdfPlateauDetails||'';
   // Build lines table
@@ -1990,7 +2122,7 @@ function addExtraLine(){_extraLines.push({name:'',price:0,type:'autre'});renderE
 
 async function generatePDF(){
   const d=getCurrentDevis();if(!d)return;
-  // Save config back to devis
+  d._pdfMaskDetail=document.getElementById('pdf-mask-detail').checked;
   d._pdfPlateauLabel=document.getElementById('pdf-plateau-label').value.trim();
   d._pdfPlateauDetails=document.getElementById('pdf-plateau-details').value.trim();
   (d.lignes||[]).forEach((l,i)=>{const s=document.getElementById('plt-'+i);if(s)l._pdfType=s.value;});
@@ -2032,7 +2164,9 @@ function buildPDFHTML(d){
   }
 
   let rows='';
-
+  if(d._pdfMaskDetail){
+    rows=buildRow('Montant total','',fmtEur(totalNet));
+  } else {
   // Plateau (grouped, shown as single line)
   if(grpPlateau.length){
     const tot=grpPlateau.reduce((s,l)=>s+l.qty*l.price,0)*( 1+marginPct/100);
@@ -2057,6 +2191,7 @@ function buildPDFHTML(d){
     if(l.type==='offert') rows+=buildRow(l.name,'','<em>Offerte</em>','pdf-offered');
     else rows+=buildRow(l.name,'',t===0?'<em>Offerte</em>':fmtEur(t));
   });
+  }
 
   // CGV paragraphs
   const cgvHtml=(s.cgv||DEFAULT_CGV).split('\n\n').filter(Boolean).map(para=>{
@@ -2206,12 +2341,14 @@ function calcResin(){
 }
 function calcResinCost(liters){
   if(liters===undefined)liters=parseFloat(document.getElementById('calc-vol')?.textContent?.replace(',','.'))||0;
-  const pk=gv('price-per-kg')||35,den=gv('resin-density')||1.1,ratio=parseFloat(document.getElementById('ratio-select')?.value)||2;
-  const mass=liters*den,pA=mass/(ratio+1)*ratio,pB=mass/(ratio+1),cost=mass*pk;
+  const pk=gv('price-per-kg')||35,den=gv('resin-density')||1.1;
+  const ra=parseFloat(document.getElementById('ratio-a')?.value)||100,rb=parseFloat(document.getElementById('ratio-b')?.value)||50;
+  const tot=ra+rb;const mass=liters*den;const pA=tot>0?mass*ra/tot:mass;const pB=tot>0?mass*rb/tot:0;
+  const cost=mass*pk;
   document.getElementById('cr-vol').textContent=liters.toFixed(2).replace('.',',')+' L';
   document.getElementById('cr-mass').textContent=mass.toFixed(3).replace('.',',')+' kg';
-  document.getElementById('cr-partA').textContent=pA.toFixed(3).replace('.',',')+' kg';
-  document.getElementById('cr-partB').textContent=pB.toFixed(3).replace('.',',')+' kg';
+  document.getElementById('cr-partA').textContent=(pA||0).toFixed(3).replace('.',',')+' kg';
+  document.getElementById('cr-partB').textContent=(pB||0).toFixed(3).replace('.',',')+' kg';
   document.getElementById('cr-total').textContent=fmtEur(cost);
 }
 
@@ -3250,21 +3387,19 @@ function renderStats(){
     </div>
     <div style="font-size:11px;color:var(--text-dim);font-family:DM Mono,monospace;text-align:right;">Total : ${fmtEur(caByMonth.reduce((s,m)=>s+m.ca,0))}</div>`;
 
-  // Origine clients
+  // Origine du contact (projets) ou fallback origine clients
   const origins={};
-  accepted.forEach(d=>{
-    const cl=(state.clients||[]).find(c=>(c.firstname+' '+c.lastname).trim()===d.client?.split('\n')[0]?.trim());
-
-    let origin='Direct';
-    if(cl){if(cl.vinted)origin='Vinted';else if(cl.etsy)origin='Etsy';else if(cl.lbc)origin='Le Bon Coin';else if(cl.insta)origin='Instagram';}
-    origins[origin]=(origins[origin]||0)+1;
-  });
+  const originLabels={bouche-a-oreille:'Bouche-à-oreille',instagram:'Instagram',salon:'Salon / foire',site:'Site web',vinted:'Vinted',etsy:'Etsy',leboncoin:'Le Bon Coin',autre:'Autre'};
+  const withOrigin=state.projects.filter(p=>p.contactOrigin);
+  if(withOrigin.length>0){withOrigin.forEach(p=>{const label=originLabels[p.contactOrigin]||p.contactOrigin;origins[label]=(origins[label]||0)+1;});}
+  else{accepted.forEach(d=>{const cl=(state.clients||[]).find(c=>(c.firstname+' '+c.lastname).trim()===d.client?.split('\n')[0]?.trim());let origin='Direct';if(cl){if(cl.vinted)origin='Vinted';else if(cl.etsy)origin='Etsy';else if(cl.lbc)origin='Le Bon Coin';else if(cl.insta)origin='Instagram';}origins[origin]=(origins[origin]||0)+1;});}
   const maxO=Math.max(...Object.values(origins),1);
-  const oColors={'Direct':'var(--amber)','Instagram':'#bc2a8d','Vinted':'#2ecc71','Etsy':'#f56400','Le Bon Coin':'#ff6600'};
+  const oColors={'Bouche-à-oreille':'var(--amber)','Instagram':'#bc2a8d','Vinted':'#2ecc71','Etsy':'#f56400','Le Bon Coin':'#ff6600','Salon / foire':'var(--purple)','Site web':'var(--resin)','Autre':'var(--text-dim)','Non renseigné':'var(--border)','Direct':'var(--amber)'};
+  const unitLabel=withOrigin.length>0?'projet':'client';
   document.getElementById('stats-origin-chart').innerHTML=Object.entries(origins).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
     <div class="stats-bar-item"><div class="stats-bar-label">${esc(k)}</div>
       <div class="stats-bar-track"><div class="stats-bar-fill" style="width:${Math.round(v/maxO*100)}%;background:${oColors[k]||'var(--resin)'}"></div></div>
-      <div class="stats-bar-val">${v} client${v>1?'s':''}</div></div>`).join('');
+      <div class="stats-bar-val">${v} ${unitLabel}${v>1?'s':''}</div></div>`).join('');
 
   // Taux conversion
   const total=allDevis.length,acc=accepted.length,ref=(state.devis||[]).filter(d=>d.status==='refuse').length,pend=(state.devis||[]).filter(d=>d.status==='envoye').length;
@@ -3423,6 +3558,32 @@ function printCourses() {
 }
 
 // ==================== CATALOGUE RÉSINES ====================
+function renderCatalogueResines(){
+  if(!state.resines)state.resines=[];
+  const grid=document.getElementById('catalogue-resines-grid');
+  const empty=document.getElementById('catalogue-resines-empty');
+  if(!grid)return;
+  grid.innerHTML='';
+  if(!state.resines.length){if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  state.resines.forEach((r,i)=>{
+    const totA=r.ratioA||2,totB=r.ratioB||1,tot=totA+totB;
+    const priceA=parseFloat(r.priceA)||0,priceB=parseFloat(r.priceB)||0;
+    const blended=tot?(priceA*totA/tot+priceB*totB/tot):0;
+    const card=document.createElement('div');card.className='resine-card';
+    card.innerHTML='<div class="resine-name">'+esc(r.name)+'</div>'
+      +'<div class="resine-brand">'+esc(r.brand||'—')+(r.color?' · '+esc(r.color):'')+'</div>'
+      +'<div class="resine-specs"><div class="resine-spec"><div class="resine-spec-val">'+fmtEur(blended)+'</div><div class="resine-spec-label">Prix mélangé /kg</div></div>'
+      +'<div class="resine-spec"><div class="resine-spec-val">'+fmtEur(priceA)+' / '+fmtEur(priceB)+'</div><div class="resine-spec-label">Prix A / B (€/kg)</div></div>'
+      +'<div class="resine-spec"><div class="resine-spec-val" style="color:var(--amber-light)">'+totA+':'+totB+'</div><div class="resine-spec-label">Ratio A:B</div></div></div>'
+      +'<div class="resine-ratio">Pour 1 kg → '+(totA/tot*1000).toFixed(0)+'g A + '+(totB/tot*1000).toFixed(0)+'g B</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +'<button class="resine-select-btn" onclick="applyResineToCalc('+i+')">→ Calculatrice</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="openEditResine('+i+')" title="Modifier">✏️</button>'
+      +'<button class="btn btn-danger btn-sm" onclick="deleteResine('+i+')" title="Supprimer">🗑</button></div>';
+    grid.appendChild(card);
+  });
+}
 function renderResines() {
   if (!state.resines) state.resines = [];
   const grid = document.getElementById('resines-grid');
@@ -4101,7 +4262,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   await loadState();
   dbg('Données chargées — projets:' + (state.projects||[]).length + ' clients:' + (state.clients||[]).length, true);
   if(!state.devis)state.devis=[];if(!state.settings)state.settings={};if(!state.clients)state.clients=[];
-  if(!state.stocks)state.stocks=[];if(!state.planning)state.planning=[];if(!state.resines)state.resines=[];
+  if(!state.stocks)state.stocks=[];if(!state.planning)state.planning=[];if(!state.resines)state.resines=[];if(!state.simulations)state.simulations=[];if(!state.pigments)state.pigments=[];
   state.projects.forEach(p=>{if(!p.resins)p.resins=[];if(!p.times)p.times=[];if(!p.postes)p.postes=[];});
   _tryRestoreSession();
   renderDashboard();
@@ -4382,6 +4543,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   </div>
   <div class="mob-more-item" data-section="stats" onclick="showSection('stats');closeMobMore()">
     <span>📈</span><span>Stats</span>
+  </div>
+  <div class="mob-more-item" data-section="catalogue-resine" onclick="showSection('catalogue-resine');closeMobMore()">
+    <span>🧪</span><span>Catalogue résine</span>
   </div>
   <div class="mob-more-item" data-section="scanner" onclick="showSection('scanner');closeMobMore()">
     <span>📷</span><span>Factures</span>
