@@ -673,6 +673,7 @@ window.addEventListener('unhandledrejection', function(e) {
   <span class="backup-icon" id="backup-icon">☁️</span>
   <span class="backup-label" id="backup-label">Firebase</span>
   <span id="firebase-status" style="font-size:11px;color:#2ecc71;margin-left:6px;">● Synchronisé</span>
+  <span id="last-save-indicator" style="font-size:10px;color:var(--text-dim);margin-left:6px;"></span>
   <button class="backup-btn" id="backup-btn" onclick="manualBackup()" style="display:none">💾</button>
 </div>
 
@@ -692,15 +693,31 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="nav-tab" data-section="catalogue-resine" onclick="showSection('catalogue-resine')">🧪 Catalogue résine</button>
     <button class="nav-tab" data-section="scanner" onclick="showSection('scanner')">📷 Factures</button>
     <button class="nav-tab" data-section="parametres" onclick="showSection('parametres')">⚙ Paramètres</button>
+    <button class="nav-tab" id="btn-global-search" onclick="openGlobalSearch()" title="Recherche (Ctrl+K)" style="margin-left:8px;padding:6px 10px;">🔍</button>
   </div>
 </nav>
+<!-- Modal recherche globale -->
+<div class="modal-overlay" id="modal-global-search" onclick="if(event.target===this)closeModal('modal-global-search')">
+  <div class="modal" style="max-width:520px;" onclick="event.stopPropagation()">
+    <h2>Recherche</h2>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Projets, devis, clients. Raccourci : Ctrl+K</p>
+    <input type="text" id="global-search-input" placeholder="Nom, référence, client…" style="width:100%;padding:12px 14px;font-size:14px;margin-bottom:12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" oninput="runGlobalSearch(this.value)" onkeydown="if(event.key==='Escape')closeModal('modal-global-search')">
+    <div id="global-search-results" style="max-height:320px;overflow-y:auto;"></div>
+  </div>
+</div>
+<!-- Bandeau hors ligne -->
+<div id="offline-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#c0392b;color:#fff;padding:10px 20px;text-align:center;font-size:13px;">Vous êtes hors ligne. Les données seront synchronisées à la reconnexion.</div>
 
 <div id="main-content">
 
 <!-- PROJETS LIST -->
 <div id="section-projets" class="section">
   <div class="page-header"><h1>Mes Projets</h1><p>// suivi des coûts matière et du temps passé</p></div>
-  <div style="margin-bottom:20px;"><button class="btn btn-primary" onclick="openNewProject()">＋ Nouveau projet</button></div>
+  <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <button class="btn btn-primary" onclick="openNewProject()">＋ Nouveau projet</button>
+    <input type="text" id="filter-projets" placeholder="Filtrer par nom…" style="max-width:220px;padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" oninput="renderProjects()">
+    <button class="btn btn-ghost btn-sm" onclick="exportProjectsCSV()">📥 Export CSV</button>
+  </div>
   <div class="projects-grid" id="projects-grid"></div>
   <div id="projects-empty" class="empty" style="display:none;"><div class="empty-icon">🪵</div><h3>Aucun projet</h3><p>Créez votre premier projet pour commencer le suivi.</p></div>
 </div>
@@ -729,6 +746,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="detail-tab" onclick="switchDetailTab('temps')">Temps</button>
     <button class="detail-tab" onclick="switchDetailTab('stats')">Stats</button>
     <button class="detail-tab" onclick="switchDetailTab('renta')">💰 Rentabilité</button>
+    <button class="detail-tab" onclick="switchDetailTab('synthese')">📋 Synthèse</button>
     <button class="detail-tab" onclick="switchDetailTab('galerie')">📷 Galerie</button>
   </div>
   <div id="dtab-matieres" class="detail-pane active">
@@ -758,6 +776,14 @@ window.addEventListener('unhandledrejection', function(e) {
     <div class="renta-grid" id="renta-cards"></div>
     <div id="renta-detail"></div>
   </div>
+  <div id="dtab-synthese" class="detail-pane">
+    <div class="section-title">Récapitulatif estimation vs coût final</div>
+    <div id="synthese-recap" class="renta-grid" style="margin-bottom:20px;"></div>
+    <div class="form-group">
+      <label>Synthèse / commentaire (éditable)</label>
+      <textarea id="synthese-text" rows="6" placeholder="Résumé du projet, écarts constatés, points d’attention pour les prochains…" style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;line-height:1.6;" onblur="var p=getCurrentProject();if(p){p.syntheseText=document.getElementById('synthese-text').value;saveState();}"></textarea>
+    </div>
+  </div>
   <div id="dtab-galerie" class="detail-pane">
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Les photos sont stockées localement dans votre navigateur. Si Drive est connecté, elles sont aussi sauvegardées.</p>
     <div class="gallery-grid" id="gallery-grid">
@@ -777,7 +803,18 @@ window.addEventListener('unhandledrejection', function(e) {
 <!-- DEVIS LIST -->
 <div id="section-devis" class="section">
   <div class="page-header"><h1>Devis</h1><p>// propositions commerciales pour vos clients</p></div>
-  <div style="margin-bottom:20px;"><button class="btn btn-primary" onclick="openNewDevis(null)">＋ Nouveau devis</button></div>
+  <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <button class="btn btn-primary" onclick="openNewDevis(null)">＋ Nouveau devis</button>
+    <select id="filter-devis-status" style="padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" onchange="renderDevisList()">
+      <option value="">Tous les statuts</option>
+      <option value="brouillon">Brouillon</option>
+      <option value="envoye">Envoyé</option>
+      <option value="accepte">Accepté</option>
+      <option value="refuse">Refusé</option>
+    </select>
+    <input type="text" id="filter-devis-text" placeholder="Filtrer par ref, client…" style="max-width:200px;padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" oninput="renderDevisList()">
+    <button class="btn btn-ghost btn-sm" onclick="exportDevisCSV()">📥 Export CSV</button>
+  </div>
   <div class="devis-grid" id="devis-grid"></div>
   <div id="devis-empty" class="empty" style="display:none;"><div class="empty-icon">📋</div><h3>Aucun devis</h3><p>Créez un devis ou générez-en un depuis un projet.</p></div>
 </div>
@@ -912,6 +949,7 @@ window.addEventListener('unhandledrejection', function(e) {
 <div id="section-dashboard" class="section active">
   <div class="page-header"><h1>Tableau de bord</h1><p>// vue d'ensemble de votre atelier</p></div>
   <div class="dash-grid" id="dash-kpis"></div>
+  <div id="dash-extra"></div>
   <div class="dash-two-col">
     <div class="dash-panel">
       <div class="section-title">Relances urgentes</div>
@@ -931,6 +969,11 @@ window.addEventListener('unhandledrejection', function(e) {
       <div class="section-title">Stocks en alerte</div>
       <div id="dash-stocks-alerte"></div>
     </div>
+  </div>
+  <div class="dash-panel" style="margin-top:18px;" id="dash-relancer-panel">
+    <div class="section-title">Devis à relancer</div>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Devis envoyés il y a plus de 7 jours sans réponse.</p>
+    <div id="dash-devis-relancer"></div>
   </div>
 </div>
 
@@ -1014,8 +1057,9 @@ window.addEventListener('unhandledrejection', function(e) {
 <!-- CLIENTS LIST -->
 <div id="section-clients" class="section">
   <div class="page-header"><h1>Clients</h1><p>// carnet d'adresses & suivi commercial</p></div>
-  <div style="margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;">
+  <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
     <button class="btn btn-primary" onclick="openNewClient()">＋ Nouveau client</button>
+    <input type="text" id="filter-clients" placeholder="Filtrer par nom…" style="max-width:220px;padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" oninput="renderClients()">
     <button class="btn btn-ghost" onclick="exportClientsExcel()">📊 Export Excel</button>
     <button class="btn btn-ghost" onclick="document.getElementById('import-clients-file').click()">📥 Importer Excel / CSV</button>
     <input type="file" id="import-clients-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="importClientsFile(this)">
@@ -1458,6 +1502,14 @@ window.addEventListener('unhandledrejection', function(e) {
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">
       Définissez comment chaque ligne apparaît sur le devis imprimé. Les lignes d'un même groupe sont fusionnées en une seule ligne avec leur total.
     </p>
+    <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:12px;color:var(--text-dim);">Modèle :</span>
+      <select id="pdf-preset-select" style="padding:6px 10px;font-size:12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);min-width:160px;">
+        <option value="">— Aucun —</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="loadPdfPreset()">Charger</button>
+      <button class="btn btn-ghost btn-sm" onclick="savePdfPreset()">Sauvegarder comme modèle</button>
+    </div>
 
     <!-- Postes principaux -->
     <div style="background:var(--surface2);border-radius:10px;padding:16px;margin-bottom:14px;">
@@ -1532,21 +1584,27 @@ async function loadState(){
     }
   }catch(e){}
 }
+let _lastSaveTime = null; let _saveError = null;
 async function saveState(){
-  const data={projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[],simulations:state.simulations||[],pigments:state.pigments||[]};
-  // 1. Save to Firebase (primary - sync across all devices)
-  try{
-    if(window._fbStateDoc && window._fbSetDoc){
-      await window._fbSetDoc(window._fbStateDoc, data);
-    }
-  }catch(e){console.warn('Firebase save failed:', e);}
-  // 2. Save to localStorage (cache/offline)
-  try{localStorage.setItem('lbdo_atelier', JSON.stringify(data));}catch(e){}
-  // 3. Save to window.storage if in Claude.ai
-  try{if(window.storage)await window.storage.set('lbdo_atelier', JSON.stringify(data));}catch(e){}
-  // Update status bar
-  const fbStatus=document.getElementById('firebase-status');
-  if(fbStatus){fbStatus.textContent='● Synchronisé';fbStatus.style.color='#2ecc71';}
+  const data={projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[],simulations:state.simulations||[],pigments:state.pigments||[],pdfPresets:state.pdfPresets||[]};
+  _saveError = null;
+  try {
+    if(window._fbStateDoc && window._fbSetDoc){ await window._fbSetDoc(window._fbStateDoc, data); }
+    try{localStorage.setItem('lbdo_atelier', JSON.stringify(data));}catch(e){}
+    try{if(window.storage)await window.storage.set('lbdo_atelier', JSON.stringify(data));}catch(e){}
+    _lastSaveTime = Date.now();
+    const fbStatus=document.getElementById('firebase-status');
+    if(fbStatus){fbStatus.textContent='● Synchronisé';fbStatus.style.color='#2ecc71';}
+    const ind=document.getElementById('last-save-indicator');
+    if(ind){const d=new Date();ind.textContent='Sauvé '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');}
+  } catch(e) {
+    _saveError = e;
+    console.warn('Save failed:', e);
+    const fbStatus=document.getElementById('firebase-status');
+    if(fbStatus){fbStatus.textContent='● Erreur';fbStatus.style.color='#e74c3c';}
+    const ind=document.getElementById('last-save-indicator');
+    if(ind){ind.textContent='Erreur sauvegarde';ind.style.color='#e74c3c';}
+  }
   // Debounced Drive backup (30s after last change)
   if(_backupConnected){
     clearTimeout(window._driveBackupDebounce);
@@ -1581,15 +1639,58 @@ function showSection(id){
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
+// ==================== RECHERCHE GLOBALE & RACCOURCIS ====================
+function openGlobalSearch(){openModal('modal-global-search');setTimeout(()=>{const i=document.getElementById('global-search-input');if(i){i.value='';i.focus();runGlobalSearch('');}},50);}
+function runGlobalSearch(q){
+  const cont=document.getElementById('global-search-results');if(!cont)return;
+  q=(q||'').trim().toLowerCase();
+  const out=[];
+  if(!q){cont.innerHTML='<div style="color:var(--text-dim);font-size:12px;padding:12px;">Saisissez quelques caractères pour rechercher dans les projets, devis et clients.</div>';return;}
+  (state.projects||[]).forEach(p=>{if((p.name||'').toLowerCase().includes(q)||(p.desc||'').toLowerCase().includes(q))out.push({type:'projet',id:p.id,label:p.name,sub:p.desc||''});});
+  (state.devis||[]).forEach(d=>{if((d.name||'').toLowerCase().includes(q)||(d.ref||'').toLowerCase().includes(q)||(d.client||'').toLowerCase().includes(q))out.push({type:'devis',id:d.id,label:(d.ref||'')+' — '+(d.name||''),sub:d.client||''});});
+  (state.clients||[]).forEach(cl=>{const n=((cl.firstname||'')+' '+(cl.lastname||'')).trim();if(n.toLowerCase().includes(q)||(cl.email||'').toLowerCase().includes(q))out.push({type:'client',id:cl.id,label:n,sub:cl.email||''});});
+  if(!out.length){cont.innerHTML='<div style="color:var(--text-dim);font-size:12px;padding:12px;">Aucun résultat.</div>';return;}
+  cont.innerHTML=out.slice(0,15).map(x=>`<div class="dash-list-item" style="cursor:pointer;margin-bottom:6px;" onclick="closeModal('modal-global-search');if('${x.type}'==='projet')openProject(${x.id});if('${x.type}'==='devis')openDevis(${x.id});if('${x.type}'==='client')openClient(${x.id});"><div><div style="font-size:13px">${esc(x.label)}</div><div style="font-size:10px;color:var(--text-dim)">${x.type} · ${esc(x.sub)}</div></div></div>`).join('');
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));return;}
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();openGlobalSearch();return;}
+  if(document.querySelector('.modal-overlay.open'))return;
+  if(e.key==='n'&&!e.ctrlKey&&!e.altKey){const sec=document.querySelector('.section.active');if(sec){const id=sec.id;if(id==='section-projets'||id==='section-dashboard'){e.preventDefault();openNewProject();}if(id==='section-devis'){e.preventDefault();openNewDevis(null);}}} 
+  if(e.key==='e'&&!e.ctrlKey&&!e.altKey){const sec=document.querySelector('.section.active');if(sec&&sec.id==='section-devis'){e.preventDefault();openNewDevis(null);}}
+});
+
+// ==================== EXPORT CSV ====================
+function exportDevisCSV(){
+  const list=getFilteredDevis?.()||state.devis||[];
+  const rows=[['Référence','Intitulé','Client','Date','Statut','Total TTC']];
+  list.forEach(d=>{const tot=(d.lignes||[]).reduce((s,l)=>s+l.qty*l.price,0);rows.push([d.ref||'',d.name||'',(d.client||'').replace(/"/g,'""'),d.date||'',d.status||'',String((tot*(1+(d.marginPct||0)/100)).toFixed(2))]);});
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent('\uFEFF'+csv);a.download='devis_export.csv';a.click();
+}
+function exportProjectsCSV(){
+  const list=getFilteredProjects?.()||state.projects||[];
+  const rows=[['Nom','Description','Forme','Coût matières']];
+  list.forEach(p=>{const cost=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0)+(p.resins||[]).reduce((s,r)=>s+rcv(r),0);rows.push([p.name||'',(p.desc||'').replace(/"/g,'""'),p.shape||'',String((cost).toFixed(2))]);});
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent('\uFEFF'+csv);a.download='projets_export.csv';a.click();
+}
+
+// ==================== HORS LIGNE ====================
+function updateOfflineBanner(){const b=document.getElementById('offline-banner');if(b)b.style.display=navigator.onLine?'none':'block';}
+window.addEventListener('online',updateOfflineBanner);
+window.addEventListener('offline',updateOfflineBanner);
+
 function switchDetailTab(tab){
   document.querySelectorAll('.detail-pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.detail-tab').forEach(t=>t.classList.remove('active'));
   const pane = document.getElementById('dtab-'+tab);
   if(pane) pane.classList.add('active');
-  const arr=['matieres','resines','temps','stats'];
+  const arr=['matieres','resines','temps','stats','renta','synthese','galerie'];
   document.querySelectorAll('.detail-tab')[arr.indexOf(tab)]?.classList.add('active');
   if(tab==='stats'){renderChart(getCurrentProject());renderAvgMold();}
   if(tab==='renta'){renderRenta();}
+  if(tab==='synthese'){renderSynthese();}
   if(tab==='galerie'){renderGallery(getCurrentProject());}
   if(tab==='resines')renderResins(getCurrentProject());
 }
@@ -1622,13 +1723,19 @@ async function deleteCurrentProject(){if(!confirm('Supprimer ce projet ?'))retur
 function getCurrentProject(){return state.projects.find(p=>p.id===state.currentId);}
 function openProject(id){state.currentId=id;showSection('detail');renderDetail();document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));}
 
+function getFilteredProjects(){
+  const q=(document.getElementById('filter-projets')||{}).value.trim().toLowerCase();
+  if(!q)return state.projects||[];
+  return (state.projects||[]).filter(p=>(p.name||'').toLowerCase().includes(q)||(p.desc||'').toLowerCase().includes(q));
+}
 function renderProjects(){
   const grid=document.getElementById('projects-grid'),empty=document.getElementById('projects-empty');
   if(!grid)return;
   grid.innerHTML='';
-  if(!state.projects.length){ if(empty)empty.style.display='block'; return; }
+  const list=getFilteredProjects();
+  if(!list.length){ if(empty)empty.style.display='block'; return; }
   if(empty)empty.style.display='none';
-  state.projects.forEach(p=>{
+  list.forEach(p=>{
     const total=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0)+(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
     const mins=(p.times||[]).reduce((s,t)=>s+t.mins,0);
     const card=document.createElement('div');card.className='project-card';card.onclick=()=>openProject(p.id);
@@ -1833,12 +1940,21 @@ async function saveTime(){
 async function deleteTime(i){const p=getCurrentProject();p.times.splice(i,1);await saveState();renderDetail();}
 
 // ==================== DEVIS ====================
+function getFilteredDevis(){
+  const status=(document.getElementById('filter-devis-status')||{}).value.trim();
+  const q=(document.getElementById('filter-devis-text')||{}).value.trim().toLowerCase();
+  let list=state.devis||[];
+  if(status)list=list.filter(d=>(d.status||'')===status);
+  if(q)list=list.filter(d=>(d.name||'').toLowerCase().includes(q)||(d.ref||'').toLowerCase().includes(q)||(d.client||'').toLowerCase().includes(q));
+  return list;
+}
 function renderDevisList(){
   const grid=document.getElementById('devis-grid'),empty=document.getElementById('devis-empty');
   grid.innerHTML='';
-  if(!(state.devis||[]).length){empty.style.display='block';return;}
+  const list=getFilteredDevis();
+  if(!list.length){empty.style.display='block';return;}
   empty.style.display='none';
-  state.devis.forEach(d=>{
+  list.forEach(d=>{
     const total=(d.lignes||[]).reduce((s,l)=>s+l.qty*l.price,0);
     const card=document.createElement('div');card.className='devis-card';card.onclick=()=>openDevis(d.id);
     card.innerHTML=`<div class="devis-card-ref">${esc(d.ref||'—')} <span class="devis-status status-${d.status||'brouillon'}">${d.status||'brouillon'}</span></div>
@@ -1873,6 +1989,10 @@ function openEditDevis(){
 async function saveDevis(){
   const name=document.getElementById('dv-name-input').value.trim();if(!name)return alert('Saisissez un intitulé.');
   const ref=document.getElementById('dv-ref-input').value.trim(),date=document.getElementById('dv-date-input').value;
+  if(!ref)return alert('Saisissez une référence de devis.');
+  const currentId=state.editMode&&getCurrentDevis()?getCurrentDevis().id:null;
+  const refExists=(state.devis||[]).some(d=>d.id!==currentId&&(d.ref||'').toLowerCase()===(ref||'').toLowerCase());
+  if(refExists)return alert('Cette référence de devis est déjà utilisée. Choisissez une autre référence.');
   const clSel=document.getElementById('dv-client-select');const clientIdSel=clSel&&clSel.value?parseInt(clSel.value,10):null;
   const client=clientIdSel?(function(){const cl=(state.clients||[]).find(c=>c.id===clientIdSel);return cl?((cl.firstname||'')+' '+(cl.lastname||'')).trim():document.getElementById('dv-client-input').value.trim();})():document.getElementById('dv-client-input').value.trim();
   const projSel=document.getElementById('dv-proj-link');const projIds=projSel?Array.from(projSel.selectedOptions).map(o=>parseInt(o.value,10)).filter(id=>!isNaN(id)&&id):[];
@@ -2103,7 +2223,25 @@ function openPrintConfig(){
   // Extra lines
   _extraLines=JSON.parse(JSON.stringify(d._extraLines||[]));
   renderExtraLines();
+  // Presets dropdown
+  const sel=document.getElementById('pdf-preset-select');if(sel){sel.innerHTML='<option value="">— Aucun —</option>';(state.pdfPresets||[]).forEach((pr,i)=>{const o=document.createElement('option');o.value=i;o.textContent=pr.name||'Modèle '+(i+1);sel.appendChild(o);});sel.value='';}
   openModal('modal-print-config');
+}
+function savePdfPreset(){
+  const name=prompt('Nom du modèle d\'impression :','Mon devis');
+  if(!name||!name.trim())return;
+  if(!state.pdfPresets)state.pdfPresets=[];
+  state.pdfPresets.push({name:name.trim(),plateauLabel:document.getElementById('pdf-plateau-label').value,plateauDetails:document.getElementById('pdf-plateau-details').value,maskDetail:document.getElementById('pdf-mask-detail').checked,extraLines:JSON.parse(JSON.stringify(_extraLines||[]))});
+  saveState();
+  const sel=document.getElementById('pdf-preset-select');if(sel){sel.innerHTML='<option value="">— Aucun —</option>';(state.pdfPresets||[]).forEach((pr,i)=>{const o=document.createElement('option');o.value=i;o.textContent=pr.name||'Modèle '+(i+1);sel.appendChild(o);});sel.value=String(state.pdfPresets.length-1);}
+}
+function loadPdfPreset(){
+  const sel=document.getElementById('pdf-preset-select');if(!sel||sel.value==='')return;
+  const pr=(state.pdfPresets||[])[parseInt(sel.value,10)];if(!pr)return;
+  document.getElementById('pdf-plateau-label').value=pr.plateauLabel||'';
+  document.getElementById('pdf-plateau-details').value=pr.plateauDetails||'';
+  document.getElementById('pdf-mask-detail').checked=!!pr.maskDetail;
+  _extraLines=JSON.parse(JSON.stringify(pr.extraLines||[]));renderExtraLines();
 }
 
 function renderExtraLines(){
@@ -2420,10 +2558,12 @@ function getCurrentClient(){return(state.clients||[]).find(cl=>cl.id===state.cur
 function renderClients(){
   if(!state.clients)state.clients=[];
   const grid=document.getElementById('clients-grid'),empty=document.getElementById('clients-empty');
+  const q=(document.getElementById('filter-clients')||{}).value.trim().toLowerCase();
+  const list=q?state.clients.filter(cl=>((cl.firstname||'')+' '+(cl.lastname||'')).toLowerCase().includes(q)||(cl.email||'').toLowerCase().includes(q)):state.clients;
   grid.innerHTML='';
-  if(!state.clients.length){empty.style.display='block';return;}
+  if(!list.length){empty.style.display='block';return;}
   empty.style.display='none';
-  state.clients.forEach(cl=>{
+  list.forEach(cl=>{
     const dvs=(state.devis||[]).filter(d=>d.clientId===cl.id);
     const dvAccepted=dvs.filter(d=>d.status==='accepte'||d.status==='facture');
     const devisTotal=dvAccepted.reduce((s,d)=>{const marg=(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0)*(d.marginPct||0)/100;return s+(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0)+marg;},0);
@@ -3057,15 +3197,26 @@ function renderDashboard(){
   const thisMonth = now.toISOString().slice(0,7);
   const lastMonth = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().slice(0,7);
 
-  // CA this month (accepted devis)
+  // CA this month: devis acceptés + ventes enregistrées (fiches clients)
   const acceptedDevis = (state.devis||[]).filter(d=>d.status==='accepte');
   function devisTotal(d){ const sub=(d.lignes||[]).reduce((s,l)=>s+l.qty*l.price,0); return sub*(1+(d.marginPct||0)/100); }
-  const caMonth = acceptedDevis.filter(d=>(d.date||'').startsWith(thisMonth)).reduce((s,d)=>s+devisTotal(d),0);
-  const caLastMonth = acceptedDevis.filter(d=>(d.date||'').startsWith(lastMonth)).reduce((s,d)=>s+devisTotal(d),0);
+  const caDevisMonth = acceptedDevis.filter(d=>(d.date||'').startsWith(thisMonth)).reduce((s,d)=>s+devisTotal(d),0);
+  const caTxMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>(t.date||'').startsWith(thisMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
+  const caMonth = caDevisMonth + caTxMonth;
+  const caDevisLastMonth = acceptedDevis.filter(d=>(d.date||'').startsWith(lastMonth)).reduce((s,d)=>s+devisTotal(d),0);
+  const caTxLastMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>(t.date||'').startsWith(lastMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
+  const caLastMonth = caDevisLastMonth + caTxLastMonth;
   const caEvol = caLastMonth ? Math.round((caMonth-caLastMonth)/caLastMonth*100) : null;
 
   // Devis en attente (envoyé)
   const devisPending = (state.devis||[]).filter(d=>d.status==='envoye');
+  // Devis à relancer (envoyés il y a 7+ jours, toujours "envoye")
+  const relanceDays = 7;
+  const cutoffRelance = new Date(now.getTime() - relanceDays*86400000).toISOString().split('T')[0];
+  const devisARelancer = devisPending.filter(d=>(d.date||'')<=cutoffRelance);
+  // Panier moyen (devis acceptés)
+  const nbAccepted = acceptedDevis.length;
+  const panierMoyen = nbAccepted ? caMonth / nbAccepted : 0;
 
   // Projets en cours (have entries in planning)
   const planEntries = state.planning||[];
@@ -3087,11 +3238,12 @@ function renderDashboard(){
 
   // KPIs
   const caEvolTxt = caEvol!==null?(caEvol>=0?'\u25b2 +':'\u25bc ')+caEvol+'% vs mois dernier':'Premier mois';
+  const caDetailTxt = caTxMonth>0 ? `Devis: ${fmtEur(caDevisMonth)} · Fiches clients: ${fmtEur(caTxMonth)}` : caEvolTxt;
   document.getElementById('dash-kpis').innerHTML = `
     <div class="kpi-card kpi-amber">
       <div class="kpi-val" style="color:var(--amber-light)">${fmtEur(caMonth)}</div>
       <div class="kpi-label">CA ce mois</div>
-      <div class="kpi-sub">${caEvolTxt}</div>
+      <div class="kpi-sub">${caDetailTxt}</div>
     </div>
     <div class="kpi-card kpi-purple">
       <div class="kpi-val" style="color:var(--purple)">${devisPending.length}</div>
@@ -3108,6 +3260,12 @@ function renderDashboard(){
       <div class="kpi-label">Relances urgentes</div>
       <div class="kpi-sub">Cette semaine</div>
     </div>`;
+  // Panier moyen et devis à relancer (ligne sous les KPIs)
+  const dashExtra = document.getElementById('dash-extra');
+  if (dashExtra) dashExtra.innerHTML = `<div style="display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);margin-top:8px;">
+    ${nbAccepted ? `<span>Panier moyen (devis acceptés) : <strong style="color:var(--amber-light)">${fmtEur(panierMoyen)}</strong></span>` : ''}
+    ${devisARelancer.length ? `<span>Devis à relancer (envoyés il y a ${relanceDays}+ j.) : <strong style="color:var(--red)">${devisARelancer.length}</strong></span>` : ''}
+  </div>`;
 
   // Relances urgentes list
   const relDiv = document.getElementById('dash-relances');
@@ -3146,6 +3304,15 @@ function renderDashboard(){
     <div class="dash-urgency" style="background:var(--red)"></div>
     <div style="flex:1"><div style="font-size:13px">${esc(s.name)}</div><div style="font-size:10px;color:var(--red);font-family:DM Mono,monospace">Stock : ${s.qty} ${s.unit} (seuil : ${s.min})</div></div>
     <button class="btn btn-ghost btn-sm" onclick="showSection('stocks')">›</button></div>`).join('');
+  // Devis à relancer
+  const relDiv2 = document.getElementById('dash-devis-relancer');
+  if(relDiv2){
+    if(!devisARelancer.length) relDiv2.innerHTML='<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">Aucun devis à relancer.</div>';
+    else relDiv2.innerHTML = devisARelancer.slice(0,8).map(d=>{
+      const tot=(d.lignes||[]).reduce((s,l)=>s+l.qty*l.price,0)*(1+(d.marginPct||0)/100);
+      return `<div class="dash-list-item"><div style="flex:1"><div style="font-size:13px">${esc(d.ref||'')} — ${esc(d.name)}</div><div style="font-size:10px;color:var(--text-dim)">${esc(d.client||'')} · envoyé ${d.date||'—'}</div></div><span style="font-family:DM Mono,monospace;font-size:12px;color:var(--amber-light)">${fmtEur(tot)}</span><button class="btn btn-ghost btn-sm" onclick="openDevis(${d.id})">›</button></div>`;
+    }).join('');
+  }
 }
 
 // ==================== RENTABILITÉ ====================
@@ -3182,6 +3349,39 @@ function renderRenta(){
   } else {
     detail.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Saisissez votre prix de vente pour voir la rentabilité complète.</div>';
   }
+}
+
+// ==================== SYNTHÈSE PROJET ====================
+function getProjectEstimatedCost(p){
+  if(!p)return 0;
+  const postes=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0);
+  const resins=(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
+  return postes+resins;
+}
+function getProjectActualCost(p){
+  if(!p)return 0;
+  const postes=(p.postes||[]).reduce((s,r)=>s+((r.actualQty!=null?r.actualQty:r.qty)*((r.actualPrice!=null?r.actualPrice:r.price))),0);
+  const resins=(p.resins||[]).reduce((s,r)=>s+rcvActual(r),0);
+  return postes+resins;
+}
+function renderSynthese(){
+  const p=getCurrentProject();if(!p)return;
+  const recapEl=document.getElementById('synthese-recap');const textEl=document.getElementById('synthese-text');
+  if(!recapEl)return;
+  const estim=getProjectEstimatedCost(p);
+  const reel=getProjectActualCost(p);
+  const pv=p.prixVente||0;
+  const margeEstim=pv-estim;
+  const margeReel=pv-reel;
+  const margeEstimPct=pv?Math.round(margeEstim/pv*100):null;
+  const margeReelPct=pv?Math.round(margeReel/pv*100):null;
+  recapEl.innerHTML=`
+    <div class="renta-card"><div class="renta-val renta-amber">${fmtEur(estim)}</div><div class="renta-label">Estimation initiale</div></div>
+    <div class="renta-card"><div class="renta-val" style="color:var(--resin)">${fmtEur(reel)}</div><div class="renta-label">Coût final</div></div>
+    <div class="renta-card"><div class="renta-val" style="color:var(--purple)">${fmtEur(pv)}</div><div class="renta-label">Prix de vente</div></div>
+    <div class="renta-card"><div class="renta-val" style="color:${margeEstim>=0?'var(--green)':'var(--red)'}">${pv?fmtEur(margeEstim):'—'}</div><div class="renta-label">Marge estimée${margeEstimPct!=null?' ('+margeEstimPct+'%)':''}</div></div>
+    <div class="renta-card"><div class="renta-val" style="color:${margeReel>=0?'var(--green)':'var(--red)'}">${pv?fmtEur(margeReel):'—'}</div><div class="renta-label">Marge réelle${margeReelPct!=null?' ('+margeReelPct+'%)':''}</div></div>`;
+  if(textEl){textEl.value=p.syntheseText||'';}
 }
 
 // ==================== GALERIE PHOTOS ====================
@@ -4260,9 +4460,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   dbg('Firebase: ' + (window._fbReady ? 'prêt ✅' : 'non disponible'), window._fbReady||null);
   dbg('Chargement données...');
   await loadState();
+  updateOfflineBanner();
   dbg('Données chargées — projets:' + (state.projects||[]).length + ' clients:' + (state.clients||[]).length, true);
   if(!state.devis)state.devis=[];if(!state.settings)state.settings={};if(!state.clients)state.clients=[];
-  if(!state.stocks)state.stocks=[];if(!state.planning)state.planning=[];if(!state.resines)state.resines=[];if(!state.simulations)state.simulations=[];if(!state.pigments)state.pigments=[];
+  if(!state.stocks)state.stocks=[];if(!state.planning)state.planning=[];if(!state.resines)state.resines=[];if(!state.simulations)state.simulations=[];if(!state.pigments)state.pigments=[];if(!state.pdfPresets)state.pdfPresets=[];
   state.projects.forEach(p=>{if(!p.resins)p.resins=[];if(!p.times)p.times=[];if(!p.postes)p.postes=[];});
   _tryRestoreSession();
   renderDashboard();
