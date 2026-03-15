@@ -1652,7 +1652,7 @@ function renderDetail(){
   nameEl.textContent=p.name;
   document.getElementById('detail-desc').textContent=(p.desc||'—')+(p.shape?' · '+SL[p.shape]:'');
   var clientEl=document.getElementById('detail-client');if(clientEl){var cl=p.clientId?(state.clients||[]).find(function(c){return c.id===p.clientId;}):null;clientEl.textContent=cl?('👤 '+(cl.firstname||'').trim()+' '+(cl.lastname||'').trim()).trim():'';clientEl.style.display=cl?'block':'none';}
-  var originEl=document.getElementById('detail-origin');if(originEl){var ol={bouche-a-oreille:'Bouche-à-oreille',instagram:'Instagram',salon:'Salon / foire',site:'Site web',vinted:'Vinted',etsy:'Etsy',leboncoin:'Le Bon Coin',autre:'Autre'};originEl.textContent=p.contactOrigin?('📍 '+ (ol[p.contactOrigin]||p.contactOrigin)):'';originEl.style.display=p.contactOrigin?'block':'none';}
+  var originEl=document.getElementById('detail-origin');if(originEl){var ol={'bouche-a-oreille':'Bouche-à-oreille',instagram:'Instagram',salon:'Salon / foire',site:'Site web',vinted:'Vinted',etsy:'Etsy',leboncoin:'Le Bon Coin',autre:'Autre'};originEl.textContent=p.contactOrigin?('📍 '+ (ol[p.contactOrigin]||p.contactOrigin)):'';originEl.style.display=p.contactOrigin?'block':'none';}
   const mat=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0);
   const res=(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
   const mins=(p.times||[]).reduce((s,t)=>s+t.mins,0);
@@ -3389,7 +3389,7 @@ function renderStats(){
 
   // Origine du contact (projets) ou fallback origine clients
   const origins={};
-  const originLabels={bouche-a-oreille:'Bouche-à-oreille',instagram:'Instagram',salon:'Salon / foire',site:'Site web',vinted:'Vinted',etsy:'Etsy',leboncoin:'Le Bon Coin',autre:'Autre'};
+  const originLabels={'bouche-a-oreille':'Bouche-à-oreille',instagram:'Instagram',salon:'Salon / foire',site:'Site web',vinted:'Vinted',etsy:'Etsy',leboncoin:'Le Bon Coin',autre:'Autre'};
   const withOrigin=state.projects.filter(p=>p.contactOrigin);
   if(withOrigin.length>0){withOrigin.forEach(p=>{const label=originLabels[p.contactOrigin]||p.contactOrigin;origins[label]=(origins[label]||0)+1;});}
   else{accepted.forEach(d=>{const cl=(state.clients||[]).find(c=>(c.firstname+' '+c.lastname).trim()===d.client?.split('\n')[0]?.trim());let origin='Direct';if(cl){if(cl.vinted)origin='Vinted';else if(cl.etsy)origin='Etsy';else if(cl.lbc)origin='Le Bon Coin';else if(cl.insta)origin='Instagram';}origins[origin]=(origins[origin]||0)+1;});}
