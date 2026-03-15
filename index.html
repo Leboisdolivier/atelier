@@ -455,7 +455,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
 .mob-tab .mob-label{font-size:8.5px;line-height:1;}
 
 /* Mobile MORE menu */
-.mob-more-menu{position:fixed;bottom:62px;right:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;min-width:180px;z-index:300;display:none;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.mob-more-menu{position:fixed;bottom:62px;right:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;min-width:180px;z-index:550;display:none;box-shadow:0 8px 30px rgba(0,0,0,.5);}
 .mob-more-menu.open{display:block;}
 .mob-more-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text);transition:background .15s;-webkit-tap-highlight-color:transparent;}
 .mob-more-item:hover,.mob-more-item:active{background:var(--surface2);}
@@ -595,11 +595,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
   .projects-grid,.devis-grid{grid-template-columns:1fr;}
   .settings-grid{grid-template-columns:1fr;}
 }
-
-
-
-
-body main 
 
 /* === SECTION VISIBILITY (JS-controlled) === */
 .section { display: none; }
@@ -757,7 +752,7 @@ window.addEventListener('unhandledrejection', function(e) {
   <div id="dtab-renta" class="detail-pane">
     <div class="prix-vente-input">
       <label>💰 Prix de vente final (€ TTC)</label>
-      <input type="number" id="renta-prix-vente" placeholder="0,00" min="0" step="0.01" oninput="renderRenta()">
+      <input type="number" id="renta-prix-vente" placeholder="0,00" min="0" step="0.01" oninput="renderRenta()" onblur="(function(){var p=getCurrentProject();if(p){var v=parseFloat(document.getElementById('renta-prix-vente').value)||0;p.prixVente=v;saveState();}})()">
     </div>
     <div class="renta-grid" id="renta-cards"></div>
     <div id="renta-detail"></div>
@@ -801,6 +796,8 @@ window.addEventListener('unhandledrejection', function(e) {
         <option value="accepte">Accepté</option><option value="refuse">Refusé</option>
       </select>
       <button class="btn btn-ghost" onclick="openEditDevis()">✏️ Modifier</button>
+      <button class="btn btn-ghost" onclick="var d=getCurrentDevis();if(d)duplicateDevis(d.id)">⧉ Dupliquer</button>
+      <button class="btn btn-ghost" onclick="duplicateProjectFromDevis()">📋 Dupliquer en projet</button>
       <button class="btn btn-primary" onclick="openPrintConfig()">🖨️ Imprimer PDF</button>
       <button class="btn btn-danger" onclick="deleteCurrentDevis()">🗑</button>
     </div>
@@ -814,12 +811,12 @@ window.addEventListener('unhandledrejection', function(e) {
   <div class="section-title" style="margin-top:4px;">Lignes du devis</div>
   <div style="margin-bottom:10px;"><button class="btn btn-primary" onclick="openAddLigne()">＋ Ajouter une ligne</button></div>
   <table class="devis-ligne-table" id="devis-ligne-table">
-    <thead><tr><th>Désignation</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>Prix TTC</th><th style="text-align:right">Total HT</th><th></th></tr></thead>
+    <thead><tr><th>Désignation</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>Prix TTC</th><th style="text-align:right">Total TTC</th><th></th></tr></thead>
     <tbody id="devis-lignes-tbody"></tbody>
   </table>
   <div id="devis-lignes-empty" class="empty" style="display:none;padding:24px;"><p>Aucune ligne. Ajoutez des lignes ou importez depuis la calculatrice.</p></div>
   <div class="devis-total-section" id="devis-total-section" style="display:none;">
-    <div class="devis-total-line"><span>Sous-total HT (déduit)</span><span id="dv-subtotal-raw">—</span></div>
+    <div class="devis-total-line"><span>Sous-total TTC</span><span id="dv-subtotal-raw">—</span></div>
     <div class="devis-total-line"><span id="dv-margin-label">Marge (0%)</span><span id="dv-margin-val">—</span></div>
     <div class="devis-total-line"><span id="dv-tva-label">TVA (20%)</span><span id="dv-tva">—</span></div>
     <div class="devis-total-line grand-total"><span>Total TTC</span><span id="dv-ttc">—</span></div>
@@ -866,7 +863,10 @@ window.addEventListener('unhandledrejection', function(e) {
       </div>
       <div style="margin-top:12px;">
         <div class="form-row">
+          <div class="form-group"><label>% surface à remplir</label><input type="number" id="fill-pct" value="100" min="1" max="100" oninput="calcResin()" title="Pourcentage de la surface du moule à remplir (ex: 80 pour 80%)"></div>
           <div class="form-group"><label>% perte / surplus</label><input type="number" id="waste-pct" value="10" min="0" max="50" oninput="calcResin()"></div>
+        </div>
+        <div class="form-row">
           <div class="form-group"><label>Épaisseur résine (mm)</label><input type="number" id="layer-thickness" value="" min="0" placeholder="optionnel" oninput="calcResin()"></div>
         </div>
       </div>
@@ -876,10 +876,9 @@ window.addEventListener('unhandledrejection', function(e) {
         <div class="section-title">Coût résine estimé</div>
         <div class="pricing-row"><label>Prix résine (€/kg)</label><input type="number" id="price-per-kg" value="35" step=".5" oninput="calcResinCost()"></div>
         <div class="pricing-row"><label>Densité résine (kg/L)</label><input type="number" id="resin-density" value="1.1" step=".01" oninput="calcResinCost()"></div>
-        <div class="pricing-row"><label>Ratio résine/durcisseur</label>
-          <select id="ratio-select" onchange="calcResinCost()" style="width:auto;">
-            <option value="2">2:1</option><option value="1">1:1</option><option value="3">3:1</option><option value="4">4:1</option>
-          </select>
+        <div class="pricing-row"><label>Ratio résine/durcisseur (A:B)</label>
+          <input type="number" id="ratio-select" value="2" min="0.5" max="10" step="0.5" oninput="calcResinCost()" placeholder="ex: 2 pour 2:1" style="width:100px;">
+          <small style="font-size:10px;color:var(--text-dim);margin-left:6px;">Saisie manuelle</small>
         </div>
         <div class="cost-result-box">
           <div class="cr-title">Décomposition</div>
@@ -1112,8 +1111,13 @@ window.addEventListener('unhandledrejection', function(e) {
           </div>
           <div class="form-group"><label>Note (date, fournisseur…)</label><input type="text" id="scan-note" placeholder=""></div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:12px;">
-          <button class="btn btn-primary" onclick="saveScannedPoste()">✅ Ajouter au projet</button>
+        <div id="scan-multi-lines" style="margin-top:14px;display:none;">
+          <div class="section-title">Lignes extraites du ticket (plusieurs possibles)</div>
+          <div id="scan-lines-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="addAllScannedLines()">✅ Tout ajouter au projet sélectionné</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="saveScannedPoste()">✅ Ajouter cette ligne au projet</button>
           <button class="btn btn-ghost" onclick="resetScanner()">🔄 Nouvelle facture</button>
         </div>
       </div>
@@ -1204,6 +1208,9 @@ window.addEventListener('unhandledrejection', function(e) {
         <option value="lshape">Forme en L</option><option value="ring">Anneau</option>
       </select>
     </div>
+    <div class="form-group"><label>Client lié</label>
+      <select id="proj-client-link"><option value="">— Aucun —</option></select>
+    </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-project')">Annuler</button>
       <button class="btn btn-primary" onclick="saveProject()">Enregistrer</button>
@@ -1211,10 +1218,10 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
 </div>
 
-<!-- Add Poste -->
-<div class="modal-overlay" id="modal-poste">
-  <div class="modal">
-    <h2>Ajouter un poste de coût</h2>
+<!-- Add/Edit Poste -->
+<div class="modal-overlay" id="modal-poste" onclick="if(event.target===this)closeModal('modal-poste')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="modal-poste-title">Ajouter un poste de coût</h2>
     <div class="form-group"><label>Désignation</label>
       <div class="ac-wrap">
         <input type="text" id="poste-name" placeholder="Plateau en chêne massif…" autocomplete="off" oninput="acSearch(this.value)" onfocus="acSearch(this.value)" onkeydown="acKeydown(event)">
@@ -1240,7 +1247,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <div class="form-group"><label>Note</label><input type="text" id="poste-note" placeholder="Fournisseur, référence…"></div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-poste')">Annuler</button>
-      <button class="btn btn-primary" onclick="savePoste()">Ajouter</button>
+      <button class="btn btn-primary" id="modal-poste-submit" onclick="savePoste()">Ajouter</button>
     </div>
   </div>
 </div>
@@ -1251,13 +1258,20 @@ window.addEventListener('unhandledrejection', function(e) {
     <h2>Ajouter une résine</h2>
     <div class="form-group"><label>Nom / marque</label><input type="text" id="resin-name" placeholder="Crystal Clear table rivière…"></div>
     <div class="form-row">
-      <div class="form-group"><label>Volume utilisé (L)</label><input type="number" id="resin-vol" value="" min="0" step=".01" placeholder="ex: 2.5" oninput="previewResin()"></div>
+      <div class="form-group"><label>Volume (L) ou Masse (kg)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="number" id="resin-vol" value="" min="0" step=".01" placeholder="L" oninput="previewResin();document.getElementById('resin-mass').value='';" style="flex:1;min-width:80px;">
+          <span style="color:var(--text-dim);align-self:center;">ou</span>
+          <input type="number" id="resin-mass" value="" min="0" step=".01" placeholder="kg" oninput="previewResin();var m=parseFloat(this.value);if(m)document.getElementById('resin-vol').value=(m/(parseFloat(document.getElementById('resin-dens').value)||1.1)).toFixed(2);" style="flex:1;min-width:80px;">
+        </div>
+      </div>
       <div class="form-group"><label>Prix au kg (€)</label><input type="number" id="resin-pkg" value="35" min="0" step=".5" oninput="previewResin()"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Densité (kg/L)</label><input type="number" id="resin-dens" value="1.1" min="0" step=".01" oninput="previewResin()"></div>
-      <div class="form-group"><label>Ratio résine/durcisseur</label>
-        <select id="resin-ratio" onchange="previewResin()"><option value="2">2:1</option><option value="1">1:1</option><option value="3">3:1</option><option value="4">4:1</option></select>
+      <div class="form-group"><label>Ratio résine/durcisseur (A:B)</label>
+        <input type="number" id="resin-ratio" value="2" min="0.5" max="10" step="0.5" placeholder="ex: 2 pour 2:1" oninput="previewResin()" style="width:100%;">
+        <small style="font-size:10px;color:var(--text-dim);">Saisie manuelle (ex: 2 = 2:1)</small>
       </div>
     </div>
     <div class="form-group"><label>Note</label><input type="text" id="resin-note" placeholder="Couleur, utilisation…"></div>
@@ -1295,9 +1309,16 @@ window.addEventListener('unhandledrejection', function(e) {
       <div class="form-group"><label>Date</label><input type="date" id="dv-date-input"></div>
     </div>
     <div class="form-group"><label>Intitulé / Objet</label><input type="text" id="dv-name-input" placeholder="Table rivière chêne & résine verte…"></div>
-    <div class="form-group"><label>Client</label><input type="text" id="dv-client-input" placeholder="Prénom NOM, adresse…"></div>
-    <div class="form-group"><label>Projet lié (importe automatiquement les postes)</label>
-      <select id="dv-proj-link"><option value="">— Aucun —</option></select>
+    <div class="form-group"><label>Client</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="dv-client-select" onchange="var o=this.options[this.selectedIndex];if(o&&o.value){var cl=(state.clients||[]).find(function(c){return c.id==o.value;});if(cl){document.getElementById('dv-client-input').value=((cl.firstname||'')+' '+(cl.lastname||'')).trim();}}" style="flex:1;min-width:180px;"><option value="">— Nouveau client (saisie libre) —</option></select>
+        <input type="text" id="dv-client-input" placeholder="Prénom NOM ou choisir ci-dessus" style="flex:1;min-width:180px;">
+      </div>
+      <small style="font-size:10px;color:var(--text-dim);">Choisir un client existant ou saisir un nom libre.</small>
+    </div>
+    <div class="form-group"><label>Projets liés (importent les postes)</label>
+      <select id="dv-proj-link" multiple style="min-height:80px;"></select>
+      <small style="font-size:10px;color:var(--text-dim);">Ctrl+Clic (ou Cmd+Clic) pour sélectionner plusieurs projets.</small>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-devis')">Annuler</button>
@@ -1306,10 +1327,10 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
 </div>
 
-<!-- Add Ligne Devis -->
-<div class="modal-overlay" id="modal-ligne">
+<!-- Add/Edit Ligne Devis -->
+<div class="modal-overlay" id="modal-ligne" onclick="if(event.target===this)closeModal('modal-ligne')">
   <div class="modal" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">
-    <h2>Ajouter une ligne</h2>
+    <h2 id="modal-ligne-title">Ajouter une ligne</h2>
     <div class="form-group"><label>Désignation</label><input type="text" id="lg-name" placeholder="Plateau chêne, résine, pieds…"></div>
     <div class="form-row">
       <div class="form-group"><label>Catégorie</label>
@@ -1330,7 +1351,7 @@ window.addEventListener('unhandledrejection', function(e) {
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-ligne')">Annuler</button>
-      <button class="btn btn-primary" onclick="saveLigne()">Ajouter</button>
+      <button class="btn btn-primary" id="modal-ligne-submit" onclick="saveLigne()">Ajouter</button>
     </div>
   </div>
 </div>
@@ -1415,16 +1436,6 @@ window.addEventListener('unhandledrejection', function(e) {
 </div>
 
 <script>
-// Global error handler for mobile debugging
-window.onerror = function(msg, src, line, col, err) {
-  var d = document.getElementById('section-dashboard');
-  if (d) {
-    d.style.color = '#f0a830';
-    d.style.padding = '20px';
-    d.innerHTML = '<h2 style="color:#c0392b">Erreur JS</h2><pre style="font-size:11px;color:#e8dcc8;white-space:pre-wrap">' + msg + '\nLigne ' + line + '\n' + (err ? err.stack : '') + '</pre>';
-  }
-  return false;
-};
 // ==================== STATE ====================
 let state={projects:[],devis:[],settings:{},currentId:null,currentDevisId:null,editMode:false,calcShape:'rectangle'};
 
@@ -1504,7 +1515,8 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 function switchDetailTab(tab){
   document.querySelectorAll('.detail-pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.detail-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('dtab-'+tab).classList.add('active');
+  const pane = document.getElementById('dtab-'+tab);
+  if(pane) pane.classList.add('active');
   const arr=['matieres','resines','temps','stats'];
   document.querySelectorAll('.detail-tab')[arr.indexOf(tab)]?.classList.add('active');
   if(tab==='stats'){renderChart(getCurrentProject());renderAvgMold();}
@@ -1526,13 +1538,14 @@ const CE={wood:'🪵',resin:'🧪',mold:'📐',tape:'🏷',finish:'✨',tools:'�
 const SL={rectangle:'Rectangle',round:'Rond',oval:'Ovale',triangle:'Triangle',lshape:'Forme L',ring:'Anneau',''  :'—'};
 
 // ==================== PROJECTS ====================
-function openNewProject(){state.editMode=false;document.getElementById('modal-project-title').textContent='Nouveau projet';['proj-name','proj-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('proj-shape').value='';openModal('modal-project');}
-function openEditProject(){const p=getCurrentProject();if(!p)return;state.editMode=true;document.getElementById('modal-project-title').textContent='Modifier';document.getElementById('proj-name').value=p.name;document.getElementById('proj-desc').value=p.desc||'';document.getElementById('proj-shape').value=p.shape||'';openModal('modal-project');}
+function openNewProject(){state.editMode=false;document.getElementById('modal-project-title').textContent='Nouveau projet';['proj-name','proj-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('proj-shape').value='';const clSel=document.getElementById('proj-client-link');if(clSel){clSel.innerHTML='<option value="">— Aucun —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value='';}openModal('modal-project');}
+function openEditProject(){const p=getCurrentProject();if(!p)return;state.editMode=true;document.getElementById('modal-project-title').textContent='Modifier';document.getElementById('proj-name').value=p.name;document.getElementById('proj-desc').value=p.desc||'';document.getElementById('proj-shape').value=p.shape||'';const clSel=document.getElementById('proj-client-link');if(clSel){clSel.innerHTML='<option value="">— Aucun —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value=p.clientId||'';}openModal('modal-project');}
 async function saveProject(){
   const name=document.getElementById('proj-name').value.trim();if(!name)return alert('Saisissez un nom.');
   const desc=document.getElementById('proj-desc').value.trim(),shape=document.getElementById('proj-shape').value;
-  if(state.editMode){const p=getCurrentProject();p.name=name;p.desc=desc;p.shape=shape;}
-  else state.projects.push({id:Date.now(),name,desc,shape,postes:[],resins:[],times:[]});
+  const clSel=document.getElementById('proj-client-link');const clientId=clSel&&clSel.value?parseInt(clSel.value,10):null;
+  if(state.editMode){const p=getCurrentProject();p.name=name;p.desc=desc;p.shape=shape;p.clientId=clientId||undefined;}
+  else state.projects.push({id:Date.now(),name,desc,shape,clientId:clientId||undefined,postes:[],resins:[],times:[]});
   await saveState();closeModal('modal-project');state.editMode?renderDetail():renderProjects();
 }
 async function deleteCurrentProject(){if(!confirm('Supprimer ce projet ?'))return;state.projects=state.projects.filter(p=>p.id!==state.currentId);await saveState();showSection('projets');}
@@ -1541,9 +1554,10 @@ function openProject(id){state.currentId=id;showSection('detail');renderDetail()
 
 function renderProjects(){
   const grid=document.getElementById('projects-grid'),empty=document.getElementById('projects-empty');
+  if(!grid)return;
   grid.innerHTML='';
-  if(!state.projects.length){empty.style.display='block';return;}
-  empty.style.display='none';
+  if(!state.projects.length){ if(empty)empty.style.display='block'; return; }
+  if(empty)empty.style.display='none';
   state.projects.forEach(p=>{
     const total=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0)+(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
     const mins=(p.times||[]).reduce((s,t)=>s+t.mins,0);
@@ -1564,7 +1578,8 @@ function renderProjects(){
 
 function renderDetail(){
   const p=getCurrentProject();if(!p)return;
-  document.getElementById('detail-name').textContent=p.name;
+  const nameEl=document.getElementById('detail-name');if(!nameEl)return;
+  nameEl.textContent=p.name;
   document.getElementById('detail-desc').textContent=(p.desc||'—')+(p.shape?' · '+SL[p.shape]:'');
   const mat=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0);
   const res=(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
@@ -1578,9 +1593,10 @@ function renderDetail(){
 
 function renderPostes(p){
   const tbody=document.getElementById('postes-tbody'),empty=document.getElementById('postes-empty'),table=document.getElementById('postes-table');
+  if(!tbody)return;
   tbody.innerHTML='';
-  if(!(p.postes||[]).length){table.style.display='none';empty.style.display='block';return;}
-  table.style.display='';empty.style.display='none';
+  if(!(p.postes||[]).length){ if(table)table.style.display='none'; if(empty)empty.style.display='block'; return; }
+  if(table)table.style.display=''; if(empty)empty.style.display='none';
   p.postes.forEach((r,i)=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td><div class="poste-name"><span class="poste-dot" style="background:${CC[r.cat]||'#888'}"></span>${esc(r.name)}${r.note?'<span style="color:var(--text-dim);font-size:10px;font-style:italic;">'+esc(r.note)+'</span>':''}</div></td>
@@ -1588,7 +1604,7 @@ function renderPostes(p){
       <td style="font-family:DM Mono,monospace">${r.qty}</td><td style="color:var(--text-dim)">${r.unit}</td>
       <td style="font-family:DM Mono,monospace">${fmtEur(r.price)}</td>
       <td class="poste-price">${fmtEur(r.qty*r.price)}</td>
-      <td><button class="delete-row" onclick="deletePoste(${i})">×</button></td>`;
+      <td><button class="btn btn-ghost btn-sm" title="Modifier" onclick="openEditPoste(${i})">✏️</button><button class="delete-row" onclick="deletePoste(${i})">×</button></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -1597,10 +1613,11 @@ function rcv(r){if(!r||!r.vol)return 0;return r.vol*(r.dens||1.1)*(r.pkg||0);}
 
 function renderResins(p){
   const list=document.getElementById('resins-list'),empty=document.getElementById('resins-empty');
+  if(!list)return;
   list.innerHTML='';
-  if(!(p.resins||[]).length){empty.style.display='block';}
+  if(!(p.resins||[]).length){ if(empty)empty.style.display='block'; }
   else{
-    empty.style.display='none';
+    if(empty)empty.style.display='none';
     p.resins.forEach((r,i)=>{
       const cost=rcv(r),mass=r.vol*(r.dens||1.1),ratio=r.ratio||2,pA=mass/(ratio+1)*ratio,pB=mass/(ratio+1);
       const card=document.createElement('div');card.className='resin-card';
@@ -1671,33 +1688,41 @@ function renderChart(p){
 }
 
 // POSTES
-function openAddPoste(){['poste-name','poste-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('poste-qty').value='1';document.getElementById('poste-price').value='';openModal('modal-poste');}
+function openAddPoste(){state.editPosteIndex=undefined;document.getElementById('modal-poste-title').textContent='Ajouter un poste de coût';document.getElementById('modal-poste-submit').textContent='Ajouter';['poste-name','poste-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('poste-qty').value='1';document.getElementById('poste-price').value='';openModal('modal-poste');}
+function openEditPoste(i){const p=getCurrentProject();const r=(p.postes||[])[i];if(!r)return;state.editPosteIndex=i;document.getElementById('modal-poste-title').textContent='Modifier le poste';document.getElementById('modal-poste-submit').textContent='Enregistrer';document.getElementById('poste-name').value=r.name||'';document.getElementById('poste-cat').value=r.cat||'misc';document.getElementById('poste-qty').value=r.qty||1;document.getElementById('poste-unit').value=r.unit||'forfait';document.getElementById('poste-price').value=r.price||'';document.getElementById('poste-note').value=r.note||'';openModal('modal-poste');}
 async function savePoste(){
   const name=document.getElementById('poste-name').value.trim();if(!name)return alert('Saisissez une désignation.');
   const qty=parseFloat(document.getElementById('poste-qty').value)||1,price=parseFloat(document.getElementById('poste-price').value)||0;
   const cat=document.getElementById('poste-cat').value,unit=document.getElementById('poste-unit').value,note=document.getElementById('poste-note').value.trim();
-  getCurrentProject().postes.push({name,cat,qty,unit,price,note,_ts:Date.now()});
+  const p=getCurrentProject();const data={name,cat,qty,unit,price,note,_ts:Date.now()};
+  if(state.editPosteIndex!==undefined){p.postes[state.editPosteIndex]=data;state.editPosteIndex=undefined;}else p.postes.push(data);
   await saveState();closeModal('modal-poste');renderDetail();
 }
 async function deletePoste(i){const p=getCurrentProject();p.postes.splice(i,1);await saveState();renderDetail();}
 
 // RESINS
-function openAddResin(){['resin-name','resin-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('resin-vol').value='';document.getElementById('resin-pkg').value='35';document.getElementById('resin-dens').value='1.1';document.getElementById('resin-preview').style.display='none';openModal('modal-resin');}
+function openAddResin(){['resin-name','resin-note'].forEach(id=>document.getElementById(id).value='');document.getElementById('resin-vol').value='';document.getElementById('resin-mass').value='';document.getElementById('resin-pkg').value='35';document.getElementById('resin-dens').value='1.1';document.getElementById('resin-ratio').value='2';document.getElementById('resin-preview').style.display='none';openModal('modal-resin');}
 function previewResin(){
-  const vol=parseFloat(document.getElementById('resin-vol').value)||0;
+  const volIn=parseFloat(document.getElementById('resin-vol').value)||0;
+  const massIn=parseFloat(document.getElementById('resin-mass').value)||0;
   const pkg=parseFloat(document.getElementById('resin-pkg').value)||0;
   const dens=parseFloat(document.getElementById('resin-dens').value)||1.1;
   const ratio=parseFloat(document.getElementById('resin-ratio').value)||2;
+  const mass=massIn>0?massIn:(volIn*dens);
+  const vol=volIn>0?volIn:(massIn/dens);
   const prev=document.getElementById('resin-preview');
-  if(!vol){prev.style.display='none';return;}
-  const mass=vol*dens,cost=mass*pkg,pA=mass/(ratio+1)*ratio,pB=mass/(ratio+1);
+  if(!mass&&!vol){prev.style.display='none';return;}
+  const cost=mass*pkg,pA=mass/(ratio+1)*ratio,pB=mass/(ratio+1);
   prev.style.display='block';
-  prev.innerHTML=`Masse : ${mass.toFixed(2)} kg · A : ${pA.toFixed(2)} kg · B : ${pB.toFixed(2)} kg · <strong>Coût : ${fmtEur(cost)}</strong>`;
+  prev.innerHTML=`Masse : ${mass.toFixed(2)} kg · Vol : ${vol.toFixed(2)} L · A : ${pA.toFixed(2)} kg · B : ${pB.toFixed(2)} kg · <strong>Coût : ${fmtEur(cost)}</strong>`;
 }
 async function saveResin(){
   const name=document.getElementById('resin-name').value.trim();if(!name)return alert('Saisissez un nom.');
-  const vol=parseFloat(document.getElementById('resin-vol').value)||0;if(!vol)return alert('Saisissez le volume.');
-  const pkg=parseFloat(document.getElementById('resin-pkg').value)||0,dens=parseFloat(document.getElementById('resin-dens').value)||1.1,ratio=parseFloat(document.getElementById('resin-ratio').value)||2,note=document.getElementById('resin-note').value.trim();
+  const volIn=parseFloat(document.getElementById('resin-vol').value)||0,massIn=parseFloat(document.getElementById('resin-mass').value)||0;
+  const dens=parseFloat(document.getElementById('resin-dens').value)||1.1;
+  const vol=volIn>0?volIn:(massIn>0?massIn/dens:0);
+  if(!vol&&!massIn)return alert('Saisissez le volume (L) ou la masse (kg).');
+  const pkg=parseFloat(document.getElementById('resin-pkg').value)||0,ratio=parseFloat(document.getElementById('resin-ratio').value)||2,note=document.getElementById('resin-note').value.trim();
   const p=getCurrentProject();if(!p.resins)p.resins=[];
   p.resins.push({name,vol,pkg,dens,ratio,note});
   await saveState();closeModal('modal-resin');renderDetail();
@@ -1727,7 +1752,8 @@ function renderDevisList(){
     card.innerHTML=`<div class="devis-card-ref">${esc(d.ref||'—')} <span class="devis-status status-${d.status||'brouillon'}">${d.status||'brouillon'}</span></div>
       <div class="devis-card-name">${esc(d.name)}</div>
       <div class="devis-card-client">${esc(d.client||'—')}${d.date?' · '+esc(d.date):''}</div>
-      <div class="devis-card-total">${fmtEur(total)}<span style="font-size:11px;color:var(--text-dim);font-family:DM Mono,monospace;"> HT</span></div>`;
+      <div class="devis-card-total">${fmtEur(total)}<span style="font-size:11px;color:var(--text-dim);font-family:DM Mono,monospace;"> TTC</span></div>
+      <div style="margin-top:8px;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();duplicateDevis(${d.id})">⧉ Dupliquer</button></div>`;
     grid.appendChild(card);
   });
 }
@@ -1737,8 +1763,9 @@ function openNewDevis(projId){
   document.getElementById('dv-ref-input').value=genRef();
   document.getElementById('dv-date-input').value=new Date().toISOString().split('T')[0];
   document.getElementById('dv-name-input').value='';document.getElementById('dv-client-input').value='';
-  const sel=document.getElementById('dv-proj-link');sel.innerHTML='<option value="">— Aucun —</option>';
+  const sel=document.getElementById('dv-proj-link');sel.innerHTML='';
   state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;if(projId&&p.id==projId)o.selected=true;sel.appendChild(o);});
+  const clSel=document.getElementById('dv-client-select');if(clSel){clSel.innerHTML='<option value="">— Nouveau client (saisie libre) —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value='';}
   openModal('modal-devis');
 }
 function openEditDevis(){
@@ -1746,18 +1773,21 @@ function openEditDevis(){
   state.editMode=true;document.getElementById('modal-devis-title').textContent='Modifier le devis';
   document.getElementById('dv-ref-input').value=d.ref||'';document.getElementById('dv-date-input').value=d.date||'';
   document.getElementById('dv-name-input').value=d.name||'';document.getElementById('dv-client-input').value=d.client||'';
-  const sel=document.getElementById('dv-proj-link');sel.innerHTML='<option value="">— Aucun —</option>';
-  state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;if(d.projId&&p.id==d.projId)o.selected=true;sel.appendChild(o);});
+  const sel=document.getElementById('dv-proj-link');sel.innerHTML='';
+  state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;const projIds=d.projIds||(d.projId?[d.projId]:[]);if(projIds.indexOf(p.id)!==-1)o.selected=true;sel.appendChild(o);});
+  const clSel=document.getElementById('dv-client-select');if(clSel){clSel.innerHTML='<option value="">— Saisie libre —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value=d.clientId||'';}
   openModal('modal-devis');
 }
 async function saveDevis(){
   const name=document.getElementById('dv-name-input').value.trim();if(!name)return alert('Saisissez un intitulé.');
   const ref=document.getElementById('dv-ref-input').value.trim(),date=document.getElementById('dv-date-input').value;
-  const client=document.getElementById('dv-client-input').value.trim(),projId=document.getElementById('dv-proj-link').value||null;
-  if(state.editMode){const d=getCurrentDevis();d.name=name;d.ref=ref;d.date=date;d.client=client;d.projId=projId;}
+  const clSel=document.getElementById('dv-client-select');const clientIdSel=clSel&&clSel.value?parseInt(clSel.value,10):null;
+  const client=clientIdSel?(function(){const cl=(state.clients||[]).find(c=>c.id===clientIdSel);return cl?((cl.firstname||'')+' '+(cl.lastname||'')).trim():document.getElementById('dv-client-input').value.trim();})():document.getElementById('dv-client-input').value.trim();
+  const projSel=document.getElementById('dv-proj-link');const projIds=projSel?Array.from(projSel.selectedOptions).map(o=>parseInt(o.value,10)).filter(id=>!isNaN(id)&&id):[];
+  if(state.editMode){const d=getCurrentDevis();d.name=name;d.ref=ref;d.date=date;d.client=client;d.clientId=clientIdSel||undefined;d.projIds=projIds;if(projIds.length===1)d.projId=projIds[0];else d.projId=projIds[0]||null;}
   else{
-    const d={id:Date.now(),name,ref,date,client,projId,lignes:[],status:'brouillon',notes:'',tvaPct:20,marginPct:0};
-    if(projId){const p=state.projects.find(pr=>pr.id==projId);if(p){(p.postes||[]).forEach(r=>d.lignes.push({name:r.name,cat:r.cat,qty:r.qty,unit:r.unit,price:r.price}));(p.resins||[]).forEach(r=>{const c=rcv(r);d.lignes.push({name:'Résine : '+r.name,cat:'resin',qty:r.vol,unit:'L',price:r.vol?c/r.vol:0});});}}
+    const d={id:Date.now(),name,ref,date,client,clientId:clientIdSel||undefined,projIds,lignes:[],status:'brouillon',notes:'',tvaPct:20,marginPct:0};
+    projIds.forEach(projId=>{const p=state.projects.find(pr=>pr.id==projId);if(p){(p.postes||[]).forEach(r=>d.lignes.push({name:r.name,cat:r.cat,qty:r.qty,unit:r.unit,price:r.price}));(p.resins||[]).forEach(r=>{const c=rcv(r);d.lignes.push({name:'Résine : '+r.name,cat:'resin',qty:r.vol,unit:'L',price:r.vol?c/r.vol:0});});}});
     if(!state.devis)state.devis=[];
     state.devis.push(d);state.currentDevisId=d.id;
   }
@@ -1783,7 +1813,7 @@ function renderDevisDetail(){
   table.style.display='';empty.style.display='none';tot.style.display='block';
   d.lignes.forEach((l,i)=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(l.name)}</td><td><span class="tag" style="background:${CC[l.cat]||'#333'}22;color:${CC[l.cat]||'#888'}">${CE[l.cat]||''} ${CL[l.cat]||l.cat}</span></td><td style="font-family:DM Mono,monospace">${l.qty}</td><td style="color:var(--text-dim)">${l.unit}</td><td style="font-family:DM Mono,monospace">${fmtEur(l.price)}</td><td class="poste-price">${fmtEur(l.qty*l.price)}</td><td><button class="delete-row" onclick="deleteLigne(${i})">×</button></td>`;
+    tr.innerHTML=`<td>${esc(l.name)}</td><td><span class="tag" style="background:${CC[l.cat]||'#333'}22;color:${CC[l.cat]||'#888'}">${CE[l.cat]||''} ${CL[l.cat]||l.cat}</span></td><td style="font-family:DM Mono,monospace">${l.qty}</td><td style="color:var(--text-dim)">${l.unit}</td><td style="font-family:DM Mono,monospace">${fmtEur(l.price)}</td><td class="poste-price">${fmtEur(l.qty*l.price)}</td><td><button class="btn btn-ghost btn-sm" title="Modifier" onclick="openEditLigne(${i})">✏️</button><button class="delete-row" onclick="deleteLigne(${i})">×</button></td>`;
     tbody.appendChild(tr);
   });
   const tvaPct=parseFloat(document.getElementById('dv-tva-pct').value)||0,marginPct=parseFloat(document.getElementById('dv-margin-pct').value)||0;
@@ -1803,13 +1833,15 @@ function renderDevisDetail(){
 
 let _nt=null;function autoSaveDevisNotes(){clearTimeout(_nt);_nt=setTimeout(async()=>{const d=getCurrentDevis();if(d){d.notes=document.getElementById('dv-notes').value;await saveState();}},600);}
 
-function openAddLigne(){document.getElementById('lg-name').value='';document.getElementById('lg-qty').value='1';document.getElementById('lg-price').value='';openModal('modal-ligne');}
+function openAddLigne(){state.editLigneIndex=undefined;document.getElementById('modal-ligne-title').textContent='Ajouter une ligne';document.getElementById('modal-ligne-submit').textContent='Ajouter';document.getElementById('lg-name').value='';document.getElementById('lg-qty').value='1';document.getElementById('lg-price').value='';openModal('modal-ligne');}
+function openEditLigne(i){const d=getCurrentDevis();const l=(d.lignes||[])[i];if(!l)return;state.editLigneIndex=i;document.getElementById('modal-ligne-title').textContent='Modifier la ligne';document.getElementById('modal-ligne-submit').textContent='Enregistrer';document.getElementById('lg-name').value=l.name||'';document.getElementById('lg-cat').value=l.cat||'misc';document.getElementById('lg-qty').value=l.qty||1;document.getElementById('lg-unit').value=l.unit||'forfait';document.getElementById('lg-price').value=l.price||'';openModal('modal-ligne');}
 async function saveLigne(){
   const name=document.getElementById('lg-name').value.trim();if(!name)return alert('Saisissez une désignation.');
   const qty=parseFloat(document.getElementById('lg-qty').value)||1,price=parseFloat(document.getElementById('lg-price').value)||0;
   const cat=document.getElementById('lg-cat').value,unit=document.getElementById('lg-unit').value;
   const d=getCurrentDevis();if(!d.lignes)d.lignes=[];
-  d.lignes.push({name,cat,qty,unit,price});
+  const data={name,cat,qty,unit,price};
+  if(state.editLigneIndex!==undefined){d.lignes[state.editLigneIndex]=data;state.editLigneIndex=undefined;}else d.lignes.push(data);
   await saveState();closeModal('modal-ligne');renderDevisDetail();
 }
 async function deleteLigne(i){const d=getCurrentDevis();d.lignes.splice(i,1);await saveState();renderDevisDetail();}
@@ -2110,8 +2142,9 @@ function buildPDFHTML(d){
 </div>`;
 
   document.getElementById('pdf-render').innerHTML=html;
-  document.querySelectorAll('.section').forEach(sec=>sec.classList.remove('active'));
-  document.getElementById('section-print-preview').classList.add('active');
+  document.querySelectorAll('.section').forEach(sec=>{sec.classList.remove('active');sec.style.display='none';});
+  const printSec=document.getElementById('section-print-preview');
+  if(printSec){printSec.classList.add('active');printSec.style.display='block';printSec.scrollIntoView({behavior:'smooth'});}
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
 }
 
@@ -2162,6 +2195,8 @@ function calcResin(){
   else if(s==='lshape')vol=(gv('l-a1')*gv('l-b1')+gv('l-a2')*gv('l-b2'))*gv('l-h');
   else if(s==='ring')vol=(Math.PI*Math.pow(gv('ri-d')/2,2)-Math.PI*Math.pow(gv('ri-d2')/2,2))*gv('ri-h');
   const lt=gv('layer-thickness');if(lt>0&&s==='rectangle')vol=gv('r-l')*gv('r-w')*(lt/10);
+  const fillPct=Math.min(100,Math.max(1,gv('fill-pct')||100));
+  vol=vol*fillPct/100;
   const wp=gv('waste-pct')||0,waste=vol*wp/100,totalL=(vol+waste)/1000;
   document.getElementById('calc-vol').textContent=totalL.toFixed(2).replace('.',',');
   document.getElementById('calc-gross').textContent=Math.round(vol)+' cm³';
@@ -2494,7 +2529,7 @@ const _origSaveDevis=saveDevis;
 // saveDevis is already defined; patch clientId linkage in renderDevisDetail flow is handled below
 
 // ==================== SCANNER FACTURES (IA) ====================
-let _scanImageB64=null,_scanMediaType='image/jpeg';
+let _scanImageB64=null,_scanMediaType='image/jpeg',_scanParsedLines=[];
 
 function handleScanDrop(e){
   e.preventDefault();document.getElementById('scanner-zone').classList.remove('drag-over');
@@ -2531,28 +2566,31 @@ async function analyzeScanWithAI(){
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:600,
-        system:`Tu es un assistant comptable pour un artisan bois et résine. Analyse cette facture/reçu et extrait les informations. Réponds UNIQUEMENT en JSON valide sans markdown:
-{"name":"désignation courte du produit/service","supplier":"nom du fournisseur","price":montant_numerique_ttc,"qty":quantite_numerique,"unit":"unité","cat":"catégorie parmi: wood,mold,tape,finish,tools,misc","note":"date de la facture si visible"}
-Catégories: wood=bois/panneaux/planches, mold=mélaminé/scotch/film/moule, tape=scotch/film/adhésif, finish=vernis/huile/cire/peinture, tools=outillage/consommables atelier, misc=divers`,
+        system:`Tu es un assistant comptable pour un artisan bois et résine. Analyse cette facture/reçu (ticket de caisse, facture) et extrait TOUTES les lignes d'achat. Réponds UNIQUEMENT en JSON valide sans markdown, sous forme d'un TABLEAU (array) d'objets, un objet par ligne de produit/service. Chaque objet: {"name":"désignation courte","supplier":"fournisseur si visible","price":montant_ttc_numerique,"qty":quantite,"unit":"unité","cat":"wood|mold|tape|finish|tools|misc","note":"infos complémentaires"}
+Exemple: [{"name":"Panneau MDF","price":45.90,"qty":1,"unit":"pièce","cat":"wood","note":""},{"name":"Colle","price":12,"qty":2,"unit":"tube","cat":"misc"}]
+Catégories: wood=bois/panneaux, mold=moule/mélaminé, tape=scotch/film, finish=vernis/peinture, tools=outillage, misc=divers. Si une seule ligne, retourne quand même un tableau avec un élément.`,
         messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:_scanMediaType,data:_scanImageB64}},{type:'text',text:'Analyse cette facture et extrait les données.'}]}]
       })
     });
     const data=await resp.json();
     const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
     let parsed;try{parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());}catch(e){throw new Error('Réponse non parseable');}
-    // Fill form
-    document.getElementById('scan-name').value=parsed.name||'';
-    document.getElementById('scan-supplier').value=parsed.supplier||'';
-    document.getElementById('scan-price').value=parsed.price||'';
-    document.getElementById('scan-qty').value=parsed.qty||1;
-    document.getElementById('scan-cat').value=parsed.cat||'misc';
-    document.getElementById('scan-note').value=parsed.note||'';
-    if(parsed.unit){const sel=document.getElementById('scan-unit');for(let o of sel.options){if(o.value===parsed.unit){sel.value=parsed.unit;break;}}}
-    // Populate project select
+    if(!Array.isArray(parsed))parsed=[parsed];
+    _scanParsedLines=parsed;
+    const first=parsed[0]||{};
+    document.getElementById('scan-name').value=first.name||'';
+    document.getElementById('scan-supplier').value=first.supplier||'';
+    document.getElementById('scan-price').value=first.price||'';
+    document.getElementById('scan-qty').value=first.qty!=null?first.qty:1;
+    document.getElementById('scan-cat').value=first.cat||'misc';
+    document.getElementById('scan-note').value=first.note||'';
+    if(first.unit){const sel=document.getElementById('scan-unit');if(sel)for(let o of sel.options){if(o.value===first.unit){sel.value=first.unit;break;}}}
     const sel=document.getElementById('scan-project-select');sel.innerHTML='<option value="">— Choisir un projet —</option>';
     state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
+    const multiDiv=document.getElementById('scan-multi-lines');const listEl=document.getElementById('scan-lines-list');
+    if(parsed.length>0&&listEl){listEl.innerHTML='';parsed.forEach((line,i)=>{const div=document.createElement('div');div.className='scan-result';div.style.padding='10px 12px';div.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;"><span>${esc(line.name||'')}</span><span style="font-family:DM Mono,monospace;">${fmtEur((line.price||0)*(line.qty||1))}</span><button class="btn btn-ghost btn-sm" onclick="addScannedLineAtIndex(${i})">Ajouter</button></div>`;listEl.appendChild(div);});multiDiv.style.display=parsed.length>1?'block':'none';}
     resultArea.style.display='block';
-    status.innerHTML='✅ Facture analysée. Vérifiez et corrigez si besoin.';
+    status.innerHTML='✅ Facture analysée — '+parsed.length+' ligne(s) extraite(s).';
   }catch(e){
     status.innerHTML='⚠️ Impossible d\'analyser automatiquement. Renseignez manuellement.';
     // Still show form for manual entry
@@ -2562,26 +2600,43 @@ Catégories: wood=bois/panneaux/planches, mold=mélaminé/scotch/film/moule, tap
   }
 }
 
+function getScanFormLine(){return {name:document.getElementById('scan-name').value.trim(),price:parseFloat(document.getElementById('scan-price').value)||0,qty:parseFloat(document.getElementById('scan-qty').value)||1,cat:document.getElementById('scan-cat').value,unit:document.getElementById('scan-unit').value,note:document.getElementById('scan-note').value.trim()};}
 async function saveScannedPoste(){
-  const name=document.getElementById('scan-name').value.trim();if(!name)return alert('Saisissez une désignation.');
-  const price=parseFloat(document.getElementById('scan-price').value)||0;
-  const qty=parseFloat(document.getElementById('scan-qty').value)||1;
-  const cat=document.getElementById('scan-cat').value,unit=document.getElementById('scan-unit').value;
-  const note=document.getElementById('scan-note').value.trim();
+  const line=getScanFormLine();if(!line.name)return alert('Saisissez une désignation.');
+  await addScannedLineToProject(line);
+}
+async function addScannedLineAtIndex(i){
+  const line=_scanParsedLines[i];if(!line)return;
+  const l={name:(line.name||'').trim(),price:parseFloat(line.price)||0,qty:parseFloat(line.qty)||1,cat:line.cat||'misc',unit:line.unit||'forfait',note:(line.note||'').trim()};
+  if(!l.name)l.name='Ligne '+(i+1);
+  await addScannedLineToProject(l);
+}
+async function addAllScannedLines(){
+  const projId=parseInt(document.getElementById('scan-project-select').value)||null;
+  if(!projId)return alert('Sélectionnez un projet.');
+  const p=state.projects.find(pr=>pr.id===projId);if(!p)return alert('Projet introuvable.');
+  let n=0;
+  for(let i=0;i<_scanParsedLines.length;i++){const line=_scanParsedLines[i];const l={name:(line.name||'').trim()||'Ligne '+(i+1),price:parseFloat(line.price)||0,qty:parseFloat(line.qty)||1,cat:line.cat||'misc',unit:line.unit||'forfait',note:(line.note||'').trim()};if(!p.postes)p.postes=[];p.postes.push({name:l.name,cat:l.cat,qty:l.qty,unit:l.unit,price:l.qty?l.price/l.qty:l.price,note:l.note,_ts:Date.now()});n++;}
+  await saveState();
+  alert(`✅ ${n} ligne(s) ajoutée(s) au projet "${p.name}"`);
+  resetScanner();
+}
+async function addScannedLineToProject(line){
   const projId=parseInt(document.getElementById('scan-project-select').value)||null;
   if(!projId)return alert('Sélectionnez un projet.');
   const p=state.projects.find(pr=>pr.id===projId);if(!p)return alert('Projet introuvable.');
   if(!p.postes)p.postes=[];
-  p.postes.push({name,cat,qty,unit,price:price/qty,note,_ts:Date.now()});
+  const unitPrice=line.qty?line.price/line.qty:line.price;
+  p.postes.push({name:line.name,cat:line.cat,qty:line.qty,unit:line.unit,price:unitPrice,note:line.note,_ts:Date.now()});
   await saveState();
-  alert(`✅ Poste "${name}" ajouté au projet "${p.name}"`);
-  resetScanner();
+  alert(`✅ "${line.name}" ajouté au projet "${p.name}"`);
 }
 function resetScanner(){
-  _scanImageB64=null;
+  _scanImageB64=null;_scanParsedLines=[];
   document.getElementById('scan-status').textContent='En attente d\'une image…';
   document.getElementById('scan-result-area').style.display='none';
   document.getElementById('scan-image-preview').style.display='none';
+  const multi=document.getElementById('scan-multi-lines');if(multi)multi.style.display='none';
   document.getElementById('scanner-zone').classList.remove('processing');
 }
 
@@ -3289,8 +3344,9 @@ function openListeCourses() {
   });
 
   // Also pull from linked project postes if any
-  if (dv.projId) {
-    const proj = state.projects.find(p => p.id == dv.projId);
+  const projIds = (dv.projIds && dv.projIds.length) ? dv.projIds : (dv.projId ? [dv.projId] : []);
+  projIds.forEach(pid => {
+    const proj = state.projects.find(p => p.id == pid);
     if (proj) {
       (proj.postes || []).forEach(po => {
         const cat = po.cat || 'misc';
@@ -3300,7 +3356,7 @@ function openListeCourses() {
         bycat[cat].push({ name: po.name || '—', qty: po.qty, unit: po.unit || 'pièce', price: po.price, total: lineTotal, note: po.note || '', fromProject: true });
       });
     }
-  }
+  });
 
   // Render
   const content = document.getElementById('courses-content');
@@ -3752,6 +3808,22 @@ async function duplicateCurrentProject() {
   if (p) duplicateProject(p.id);
 }
 
+function duplicateDevis(id){
+  const orig=(state.devis||[]).find(d=>d.id===id);if(!orig)return;
+  const d=JSON.parse(JSON.stringify(orig));
+  d.id=Date.now();d.ref=genRef();d.status='brouillon';d.name=(orig.name||'')+' (copie)';
+  if(!state.devis)state.devis=[];state.devis.push(d);state.currentDevisId=d.id;
+  saveState().then(()=>{renderDevisList();openDevis(d.id);});
+}
+function duplicateProjectFromDevis(){
+  const dev=getCurrentDevis();if(!dev||!(dev.lignes||[]).length)return alert('Ouvrez un devis avec des lignes pour créer un projet.');
+  const name=prompt('Nom du nouveau projet (basé sur le devis) :',(dev.name||'Projet')+' — copie');
+  if(!name)return;
+  const p={id:Date.now(),name:name.trim(),desc:'Créé depuis le devis '+ (dev.ref||''),shape:'',postes:[],resins:[],times:[]};
+  (dev.lignes||[]).forEach(l=>{if(l.cat==='resin'){const vol=l.qty||0;if(vol>0)p.resins.push({name:l.name||'Résine',vol, pkg:l.price||0,dens:1.1,ratio:2,note:''});} else p.postes.push({name:l.name||'',cat:l.cat||'misc',qty:l.qty||1,unit:l.unit||'forfait',price:l.price||0,note:''});});
+  state.projects.push(p);saveState().then(()=>{renderProjects();openProject(p.id);});
+}
+
 
 // ==================== EXPORT CLIENTS EXCEL ====================
 function exportClientsExcel() {
@@ -4035,7 +4107,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   renderDashboard();
   renderProjects();
   setShape('rectangle');
-  document.getElementById('time-date').value=new Date().toISOString().split('T')[0];
+  var timeDateEl = document.getElementById('time-date');
+  if(timeDateEl) timeDateEl.value = new Date().toISOString().split('T')[0];
   document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});});
   dbg('Affichage tableau de bord...');
   try {
