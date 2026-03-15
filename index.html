@@ -4519,7 +4519,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   setShape('rectangle');
   var timeDateEl = document.getElementById('time-date');
   if(timeDateEl) timeDateEl.value = new Date().toISOString().split('T')[0];
-  document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});});
+  // Pas de fermeture au clic extérieur sur les fiches (poste, ligne, session, résine, projet, devis, etc.)
   dbg('Affichage tableau de bord...');
   try {
     showSection('dashboard');
