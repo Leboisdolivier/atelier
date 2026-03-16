@@ -3795,11 +3795,14 @@ function renderCatalogueResines(){
     card.innerHTML='<div class="resine-name">'+esc(r.name)+'</div>'
       +'<div class="resine-brand">'+esc(r.brand||'—')+(r.color?' · '+esc(r.color):'')+'</div>'
       +'<div class="resine-specs"><div class="resine-spec"><div class="resine-spec-val">'+fmtEur(prixAuLitre)+'</div><div class="resine-spec-label">Prix (€/L)</div></div>'
-      +'<div class="resine-spec"><div class="resine-spec-val" style="color:var(--amber-light)">'+totA+':'+totB+'</div><div class="resine-spec-label">Ratio A:B</div></div></div>'
-      +'<div class="resine-ratio">Pour 1 kg → '+(totA/tot*1000).toFixed(0)+'g A + '+(totB/tot*1000).toFixed(0)+'g B</div>'
+      +'<div class="resine-spec"><div class="resine-spec-val" style="color:var(--amber-light)">'+totA+':'+totB+'</div><div class="resine-spec-label">Ratio A:B</div></div>'
+      +'<div class="resine-spec"><div class="resine-spec-val">'+(r.gelHours!=null?r.gelHours:(r.gel!=null?(r.gel>24?r.gel/60:r.gel):'—'))+' h</div><div class="resine-spec-label">Gélification</div></div>'
+      +(r.demoulage!=null?'<div class="resine-spec"><div class="resine-spec-val">'+r.demoulage+' h</div><div class="resine-spec-label">Démoulage</div></div>':'')
+      +'</div><div class="resine-ratio">Pour 1 kg → '+(totA/tot*1000).toFixed(0)+'g A + '+(totB/tot*1000).toFixed(0)+'g B</div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
       +'<button class="resine-select-btn" onclick="applyResineToCalc('+i+')">→ Calculatrice</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="openEditResine('+i+')" title="Modifier">✏️</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="openDuplicateResine('+i+')" title="Dupliquer">⧉</button>'
       +'<button class="btn btn-danger btn-sm" onclick="deleteResine('+i+')" title="Supprimer">🗑</button></div>';
     grid.appendChild(card);
   });
@@ -3823,7 +3826,8 @@ function renderResines() {
       + '<div class="resine-specs">'
       + '<div class="resine-spec"><div class="resine-spec-val">' + fmtEur(prixAuLitre) + '</div><div class="resine-spec-label">Prix (€/L)</div></div>'
       + '<div class="resine-spec"><div class="resine-spec-val" style="color:var(--amber-light)">' + totA + ':' + totB + '</div><div class="resine-spec-label">Ratio A:B</div></div>'
-      + '<div class="resine-spec"><div class="resine-spec-val">' + (r.gel || '—') + ' min</div><div class="resine-spec-label">Temps de gel</div></div>'
+      + '<div class="resine-spec"><div class="resine-spec-val">' + (r.gelHours != null ? r.gelHours : (r.gel != null ? (r.gel > 24 ? r.gel/60 : r.gel) : '—')) + ' h</div><div class="resine-spec-label">Gélification</div></div>'
+      + (r.demoulage != null ? '<div class="resine-spec"><div class="resine-spec-val">' + r.demoulage + ' h</div><div class="resine-spec-label">Démoulage</div></div>' : '')
       + '</div>'
       + '<div class="resine-ratio">Pour 1 kg de mélange → ' + (totA/tot*1000).toFixed(0) + 'g A + ' + (totB/tot*1000).toFixed(0) + 'g B</div>'
       + (r.maxpour ? '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;font-family:DM Mono,monospace;">Épaisseur max : ' + r.maxpour + ' mm/coulée</div>' : '')
@@ -3831,6 +3835,7 @@ function renderResines() {
       + '<div style="display:flex;gap:6px;">'
       + '<button class="resine-select-btn" onclick="applyResineToCalc(' + i + ')">→ Utiliser dans la calculatrice</button>'
       + '<button class="btn btn-ghost btn-sm" onclick="openEditResine(' + i + ')" title="Modifier">✏️</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="openDuplicateResine(' + i + ')" title="Dupliquer">⧉</button>'
       + '<button class="btn btn-danger btn-sm" onclick="deleteResine(' + i + ')" title="Supprimer">🗑</button>'
       + '</div>';
     grid.appendChild(card);
@@ -3852,7 +3857,8 @@ function openNewResine() {
   document.getElementById('res-price-per-liter').value = '';
   document.getElementById('res-ratio-a').value = '2';
   document.getElementById('res-ratio-b').value = '1';
-  document.getElementById('res-gel').value = '60';
+  document.getElementById('res-gel').value = '1';
+  var demEl = document.getElementById('res-demoulage'); if (demEl) demEl.value = '';
   document.getElementById('res-density').value = '1.1';
   document.getElementById('res-maxpour').value = '30';
   updateResinePreview();
@@ -3869,7 +3875,30 @@ function openEditResine(i) {
   document.getElementById('res-price-per-liter').value = ppl !== '' ? ppl : '';
   document.getElementById('res-ratio-a').value = r.ratioA || 2;
   document.getElementById('res-ratio-b').value = r.ratioB || 1;
-  document.getElementById('res-gel').value = r.gel || 60;
+  var gelH = r.gelHours != null ? r.gelHours : (r.gel != null ? (r.gel > 24 ? r.gel / 60 : r.gel) : 1);
+  document.getElementById('res-gel').value = gelH !== '' && gelH != null ? gelH : '1';
+  var demEl = document.getElementById('res-demoulage'); if (demEl) demEl.value = r.demoulage != null ? r.demoulage : '';
+  document.getElementById('res-density').value = r.density || 1.1;
+  document.getElementById('res-maxpour').value = r.maxpour || 30;
+  document.getElementById('res-color').value = r.color || '';
+  document.getElementById('res-notes').value = r.notes || '';
+  updateResinePreview();
+  openModal('modal-resine');
+}
+
+function openDuplicateResine(i) {
+  const r = state.resines[i]; if (!r) return;
+  state.editResineIdx = -1;
+  document.getElementById('modal-resine-title').textContent = 'Dupliquer la résine';
+  document.getElementById('res-name').value = (r.name || 'Résine').trim() + ' (copie)';
+  document.getElementById('res-brand').value = r.brand || '';
+  var ppl = r.pricePerLiter != null ? r.pricePerLiter : (r.priceA != null || r.priceB != null ? (function(){var tot=(r.ratioA||2)+(r.ratioB||1);var bl=(parseFloat(r.priceA)||0)*(r.ratioA||2)/tot+(parseFloat(r.priceB)||0)*(r.ratioB||1)/tot;return bl*(r.density||1.1);})() : '');
+  document.getElementById('res-price-per-liter').value = ppl !== '' ? ppl : '';
+  document.getElementById('res-ratio-a').value = r.ratioA || 2;
+  document.getElementById('res-ratio-b').value = r.ratioB || 1;
+  var gelH = r.gelHours != null ? r.gelHours : (r.gel != null ? (r.gel > 24 ? r.gel / 60 : r.gel) : 1);
+  document.getElementById('res-gel').value = gelH !== '' && gelH != null ? gelH : '1';
+  var demEl = document.getElementById('res-demoulage'); if (demEl) demEl.value = r.demoulage != null ? r.demoulage : '';
   document.getElementById('res-density').value = r.density || 1.1;
   document.getElementById('res-maxpour').value = r.maxpour || 30;
   document.getElementById('res-color').value = r.color || '';
@@ -3897,12 +3926,16 @@ async function saveResine() {
   if (!name) return alert('Saisissez un nom de résine.');
   if (!state.resines) state.resines = [];
   const pricePerLiter = parseFloat(document.getElementById('res-price-per-liter').value) || 0;
+  var demVal = document.getElementById('res-demoulage');
+  demVal = demVal ? parseFloat(demVal.value) : undefined;
+  if (demVal !== undefined && isNaN(demVal)) demVal = undefined;
   const entry = {
     name, brand: document.getElementById('res-brand').value.trim(),
     pricePerLiter: pricePerLiter || undefined,
     ratioA: parseFloat(document.getElementById('res-ratio-a').value) || 2,
     ratioB: parseFloat(document.getElementById('res-ratio-b').value) || 1,
-    gel: parseInt(document.getElementById('res-gel').value) || 60,
+    gelHours: parseFloat(document.getElementById('res-gel').value) || 1,
+    demoulage: demVal,
     density: parseFloat(document.getElementById('res-density').value) || 1.1,
     maxpour: parseInt(document.getElementById('res-maxpour').value) || 30,
     color: document.getElementById('res-color').value.trim(),
@@ -3939,6 +3972,8 @@ async function importResinesFromJson() {
     if (!name) return;
     if (existingNames.includes(name.toLowerCase())) { skipped++; return; }
     existingNames.push(name.toLowerCase());
+    var gelM = parseInt(item.gel || item.tempsGel || 60, 10) || 60;
+    var gelH = item.gelHours != null ? parseFloat(item.gelHours) : (gelM > 24 ? gelM / 60 : gelM);
     state.resines.push({
       name,
       brand: (item.brand || item.marque || '').toString().trim(),
@@ -3947,7 +3982,8 @@ async function importResinesFromJson() {
       priceB: parseFloat(item.priceB || item.prixB || item.prix_b || 0) || 0,
       ratioA: parseFloat(item.ratioA || item.ratio_a || 100) || 100,
       ratioB: parseFloat(item.ratioB || item.ratio_b || 50) || 50,
-      gel: parseInt(item.gel || item.tempsGel || 60, 10) || 60,
+      gelHours: gelH,
+      demoulage: item.demoulage != null ? parseFloat(item.demoulage) : undefined,
       density: parseFloat(item.density || item.densite || 1.1) || 1.1,
       maxpour: parseInt(item.maxpour || item.epaisseurMax || 30, 10) || 30,
       notes: (item.notes || item.note || '').toString().trim()
@@ -4742,13 +4778,14 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     </div>
     <div id="resine-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--text-dim);margin-bottom:12px;font-family:'DM Mono',monospace;"></div>
     <div class="form-row">
-      <div class="form-group"><label>Temps de gel (min)</label><input type="number" id="res-gel" min="0" value="60" placeholder="60"></div>
-      <div class="form-group"><label>Densité (kg/L)</label><input type="number" id="res-density" step="0.01" min="0" value="1.1" placeholder="1.1"></div>
+      <div class="form-group"><label>Temps de gélification (h)</label><input type="number" id="res-gel" min="0" step="0.25" value="1" placeholder="1"></div>
+      <div class="form-group"><label>Temps de démoulage (h)</label><input type="number" id="res-demoulage" min="0" step="0.25" value="" placeholder="—"></div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label>Densité (kg/L)</label><input type="number" id="res-density" step="0.01" min="0" value="1.1" placeholder="1.1"></div>
       <div class="form-group"><label>Épaisseur max par coulée (mm)</label><input type="number" id="res-maxpour" min="0" value="30" placeholder="30"></div>
-      <div class="form-group"><label>Couleur / aspect</label><input type="text" id="res-color" placeholder="Transparent, ambre, blanc…"></div>
     </div>
+    <div class="form-group"><label>Couleur / aspect</label><input type="text" id="res-color" placeholder="Transparent, ambre, blanc…"></div>
     <div class="form-group"><label>Notes (utilisation, précautions…)</label><textarea id="res-notes" rows="2" placeholder="Préchauffer à 30°C pour réduire les bulles…"></textarea></div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-resine')">Annuler</button>
