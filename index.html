@@ -763,12 +763,13 @@ window.addEventListener('unhandledrejection', function(e) {
   <div id="dtab-matieres" class="detail-pane active">
     <div style="margin-bottom:10px;"><button class="btn btn-primary" onclick="openAddPoste()">＋ Ajouter un poste</button></div>
     <table class="postes-table" id="postes-table"><thead><tr><th>Désignation</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>Prix unit.</th><th style="text-align:right">Estimé</th><th style="text-align:right">Réel</th><th></th></tr></thead><tbody id="postes-tbody"></tbody></table>
+    <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">Pour le coût réel (prix d'achat réel), modifiez un poste (✏️) et renseignez « Qté réelle » et « Prix unit. réel ».</p>
     <div id="postes-empty" class="empty" style="display:none;padding:24px;"><p>Aucune matière ajoutée.</p></div>
   </div>
   <div id="dtab-resines" class="detail-pane">
     <div style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <button class="btn btn-resin" onclick="openAddResin()">＋ Ajouter une résine</button>
-      <span style="font-size:11px;color:var(--text-dim);font-family:'DM Mono',monospace;">Chaque résine avec son propre ratio, prix et volume</span>
+      <span style="font-size:11px;color:var(--text-dim);font-family:'DM Mono',monospace;">Chaque résine avec son propre ratio, prix et volume. Pour le coût réel (prix d'achat réel), modifiez une résine (✏️) et renseignez « Volume réel » et « Prix au kg réel ».</span>
     </div>
     <div id="resins-list"></div>
     <div id="resins-empty" class="empty" style="display:none;padding:24px;"><p>Aucune résine ajoutée.</p></div>
@@ -781,7 +782,7 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
   <div id="dtab-renta" class="detail-pane">
     <div class="prix-vente-input">
-      <label>💰 Prix de vente final (€ TTC)</label>
+      <label>💰 Prix de vente final (€)</label>
       <input type="number" id="renta-prix-vente" placeholder="0,00" min="0" step="0.01" oninput="renderRenta()" onblur="(function(){var p=getCurrentProject();if(p){var v=parseFloat(document.getElementById('renta-prix-vente').value)||0;p.prixVente=v;saveState();}})()">
     </div>
     <div class="renta-grid" id="renta-cards"></div>
@@ -789,6 +790,7 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
   <div id="dtab-synthese" class="detail-pane">
     <div class="section-title">Récapitulatif estimation vs coût final</div>
+    <div style="margin-bottom:12px;"><button class="btn btn-primary" onclick="printProjectSynthese()">🖨️ Imprimer la synthèse</button></div>
     <div id="synthese-recap" class="renta-grid" style="margin-bottom:20px;"></div>
     <div class="form-group">
       <label>Synthèse / commentaire (éditable)</label>
@@ -860,23 +862,18 @@ window.addEventListener('unhandledrejection', function(e) {
   <div class="section-title" style="margin-top:4px;">Lignes du devis</div>
   <div style="margin-bottom:10px;"><button class="btn btn-primary" onclick="openAddLigne()">＋ Ajouter une ligne</button></div>
   <table class="devis-ligne-table" id="devis-ligne-table">
-    <thead><tr><th>Désignation</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>Prix TTC</th><th style="text-align:right">Total TTC</th><th></th></tr></thead>
+    <thead><tr><th>Désignation</th><th>Catégorie</th><th>Qté</th><th>Unité</th><th>Prix unit.</th><th style="text-align:right">Total</th><th></th></tr></thead>
     <tbody id="devis-lignes-tbody"></tbody>
   </table>
   <div id="devis-lignes-empty" class="empty" style="display:none;padding:24px;"><p>Aucune ligne. Ajoutez des lignes ou importez depuis la calculatrice.</p></div>
   <div class="devis-total-section" id="devis-total-section" style="display:none;">
-    <div class="devis-total-line"><span>Sous-total TTC</span><span id="dv-subtotal-raw">—</span></div>
+    <div class="devis-total-line"><span>Sous-total</span><span id="dv-subtotal-raw">—</span></div>
     <div class="devis-total-line"><span id="dv-margin-label">Marge (0%)</span><span id="dv-margin-val">—</span></div>
-    <div class="devis-total-line"><span id="dv-tva-label">TVA (20%)</span><span id="dv-tva">—</span></div>
-    <div class="devis-total-line grand-total"><span>Total TTC</span><span id="dv-ttc">—</span></div>
+    <div class="devis-total-line grand-total"><span>Total</span><span id="dv-ttc">—</span></div>
     <div style="margin-top:12px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
       <div style="display:flex;align-items:center;gap:7px;">
         <label style="text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);margin-bottom:0;white-space:nowrap;">Marge (%)</label>
         <input type="number" id="dv-margin-pct" value="0" min="0" max="500" step="1" oninput="renderDevisDetail()" style="width:70px;">
-      </div>
-      <div style="display:flex;align-items:center;gap:7px;">
-        <label style="text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);margin-bottom:0;white-space:nowrap;">TVA (%)</label>
-        <input type="number" id="dv-tva-pct" value="20" min="0" max="100" step=".1" oninput="renderDevisDetail()" style="width:70px;">
       </div>
     </div>
   </div>
@@ -942,6 +939,7 @@ window.addEventListener('unhandledrejection', function(e) {
         </div>
         <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
           <button class="btn btn-purple" onclick="sendCalcToDevis()">📋 Envoyer vers un devis</button>
+          <button class="btn btn-resin" id="btn-calc-to-project" onclick="sendCalcResultToProject()" style="display:none;">→ Envoi au projet</button>
           <span style="display:flex;align-items:center;gap:6px;"><input type="text" id="sim-label" placeholder="Libellé simulation" style="width:140px;padding:6px 10px;"><button class="btn btn-ghost" onclick="saveSimulation()">💾 Sauvegarder</button></span>
         </div>
         <div id="calc-simulations-list" style="margin-top:14px;"></div>
@@ -1367,6 +1365,10 @@ window.addEventListener('unhandledrejection', function(e) {
 <div class="modal-overlay" id="modal-resin">
   <div class="modal">
     <h2>Ajouter une résine</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="openResineSelectorForProject()">📋 Choisir dans le catalogue</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="openCalcFromProjectResin()">🧮 Calculer les quantités</button>
+    </div>
     <div class="form-group"><label>Nom / marque</label><input type="text" id="resin-name" placeholder="Crystal Clear table rivière…"></div>
     <div class="form-row">
       <div class="form-group"><label>Volume (L) ou Masse (kg)</label>
@@ -1654,7 +1656,7 @@ function showSection(id){
   if(id==='planning')renderPlanning();
   if(id==='stats')renderStats();
   if(id==='catalogue-resine')renderCatalogueResines();
-  if(id==='calculatrice')renderCalcSimulations();
+  if(id==='calculatrice'){ if(!state._fromProjectResin){ state.calcReturnToProject=false; var b=document.getElementById('btn-calc-to-project'); if(b)b.style.display='none'; } state._fromProjectResin=false; renderCalcSimulations(); }
   if(id==='scanner'){const sel=document.getElementById('scan-project-select');if(sel){sel.innerHTML='<option value="">— Choisir un projet —</option>';state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});}}
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
@@ -1947,6 +1949,92 @@ async function saveResin(){
 }
 async function deleteResin(i){const p=getCurrentProject();p.resins.splice(i,1);await saveState();renderDetail();}
 
+function openResineSelectorForProject() {
+  if (!state.resines || !state.resines.length) {
+    if (confirm('Aucune résine dans le catalogue. Voulez-vous ouvrir les paramètres pour en ajouter ?')) {
+      closeModal('modal-resin');
+      showSection('parametres');
+      setTimeout(function(){ switchParamsTab('resines'); }, 100);
+    }
+    return;
+  }
+  var list = document.getElementById('resine-select-list');
+  if (!list) return;
+  list.innerHTML = '';
+  state.resines.forEach(function(r, i) {
+    var tot = (r.ratioA || 2) + (r.ratioB || 1);
+    var dens = r.density || 1.1;
+    var ppl = r.pricePerLiter != null ? r.pricePerLiter : (function(){var pA=parseFloat(r.priceA)||0,pB=parseFloat(r.priceB)||0; return tot?(pA*(r.ratioA||2)/tot+pB*(r.ratioB||1)/tot)*dens:0;})();
+    var blended = r.pricePerLiter != null ? r.pricePerLiter / dens : (parseFloat(r.priceA)||0)*(r.ratioA||2)/tot + (parseFloat(r.priceB)||0)*(r.ratioB||1)/tot;
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);';
+    div.innerHTML = '<div><div style="font-size:14px;color:var(--text)">' + esc(r.name) + '</div><div style="font-size:11px;color:var(--text-dim);font-family:DM Mono,monospace;">' + esc(r.brand||'') + ' · ' + fmtEur(blended) + '/kg</div></div><button class="btn btn-resin btn-sm" onclick="applyCatalogueResineToProject(' + i + ');closeModal(\'modal-resine-select\')">Choisir</button>';
+    list.appendChild(div);
+  });
+  openModal('modal-resine-select');
+}
+
+function applyCatalogueResineToProject(i) {
+  var r = state.resines[i]; if (!r) return;
+  var tot = (r.ratioA || 2) + (r.ratioB || 1);
+  var dens = r.density || 1.1;
+  var blended = r.pricePerLiter != null ? r.pricePerLiter / dens : (parseFloat(r.priceA)||0)*(r.ratioA||2)/tot + (parseFloat(r.priceB)||0)*(r.ratioB||1)/tot;
+  document.getElementById('resin-name').value = (r.name || '').trim() + (r.brand ? ' — ' + (r.brand||'').trim() : '');
+  document.getElementById('resin-pkg').value = blended.toFixed(2);
+  document.getElementById('resin-dens').value = dens;
+  document.getElementById('resin-ratio-a').value = r.ratioA != null ? r.ratioA : 100;
+  document.getElementById('resin-ratio-b').value = r.ratioB != null ? r.ratioB : 50;
+  previewResin();
+}
+
+function openCalcFromProjectResin() {
+  var name = document.getElementById('resin-name').value.trim();
+  var pkg = parseFloat(document.getElementById('resin-pkg').value) || 35;
+  var dens = parseFloat(document.getElementById('resin-dens').value) || 1.1;
+  var ra = parseFloat(document.getElementById('resin-ratio-a').value) || 100;
+  var rb = parseFloat(document.getElementById('resin-ratio-b').value) || 50;
+  document.getElementById('price-per-kg').value = pkg;
+  document.getElementById('resin-density').value = dens;
+  document.getElementById('ratio-a').value = ra;
+  document.getElementById('ratio-b').value = rb;
+  document.getElementById('sim-label').value = name || '';
+  state.calcReturnToProject = true;
+  state.pendingProjectResin = { name: name || 'Résine', pkg: pkg, dens: dens, ratioA: ra, ratioB: rb };
+  state._fromProjectResin = true;
+  closeModal('modal-resin');
+  showSection('calculatrice');
+  calcResin(); calcResinCost();
+  var btn = document.getElementById('btn-calc-to-project');
+  if (btn) btn.style.display = '';
+}
+
+function sendCalcResultToProject() {
+  var p = getCurrentProject();
+  if (!p) { alert('Ouvrez d\'abord un projet.'); return; }
+  var vol = parseFloat(document.getElementById('calc-vol').textContent.replace(',','.')) || 0;
+  if (!vol) { alert('Calculez d\'abord un volume dans la calculatrice.'); return; }
+  var dens = parseFloat(document.getElementById('resin-density').value) || 1.1;
+  var mass = vol * dens;
+  var name = (state.pendingProjectResin && state.pendingProjectResin.name) ? state.pendingProjectResin.name : document.getElementById('sim-label').value.trim() || 'Résine';
+  var pkg = parseFloat(document.getElementById('price-per-kg').value) || 35;
+  var ra = parseFloat(document.getElementById('ratio-a').value) || 100;
+  var rb = parseFloat(document.getElementById('ratio-b').value) || 50;
+  document.getElementById('resin-name').value = name;
+  document.getElementById('resin-vol').value = vol.toFixed(2);
+  document.getElementById('resin-mass').value = mass.toFixed(2);
+  document.getElementById('resin-pkg').value = pkg;
+  document.getElementById('resin-dens').value = dens;
+  document.getElementById('resin-ratio-a').value = ra;
+  document.getElementById('resin-ratio-b').value = rb;
+  state.calcReturnToProject = false;
+  state.pendingProjectResin = null;
+  var btn = document.getElementById('btn-calc-to-project');
+  if (btn) btn.style.display = 'none';
+  showSection('detail');
+  openModal('modal-resin');
+  previewResin();
+}
+
 // TIMES
 function openAddTime(){state.editTimeIndex=undefined;document.getElementById('time-desc').value='';document.getElementById('time-hours').value='0';document.getElementById('time-minutes').value='30';document.getElementById('time-date').value=new Date().toISOString().split('T')[0];document.querySelector('#modal-time h2').textContent='Session de travail';document.querySelector('#modal-time .btn-resin').textContent='Enregistrer';openModal('modal-time');}
 function openEditTime(i){const p=getCurrentProject();if(!p||!(p.times||[])[i])return;const t=p.times[i];state.editTimeIndex=i;document.getElementById('time-desc').value=t.desc||'';const h=Math.floor(t.mins/60),m=t.mins%60;document.getElementById('time-hours').value=h;document.getElementById('time-minutes').value=m;document.getElementById('time-date').value=t.date||new Date().toISOString().split('T')[0];document.querySelector('#modal-time h2').textContent='Modifier la session';document.querySelector('#modal-time .btn-resin').textContent='Enregistrer';openModal('modal-time');}
@@ -2038,7 +2126,6 @@ function renderDevisDetail(){
   document.getElementById('dv-client-display').textContent=(d.client||'—')+(d.date?' · '+d.date:'');
   document.getElementById('dv-status-select').value=d.status||'brouillon';
   document.getElementById('dv-notes').value=d.notes||'';
-  document.getElementById('dv-tva-pct').value=d.tvaPct??20;
   document.getElementById('dv-margin-pct').value=d.marginPct??0;
   const tbody=document.getElementById('devis-lignes-tbody'),empty=document.getElementById('devis-lignes-empty'),table=document.getElementById('devis-ligne-table'),tot=document.getElementById('devis-total-section');
   tbody.innerHTML='';
@@ -2049,19 +2136,14 @@ function renderDevisDetail(){
     tr.innerHTML=`<td>${esc(l.name)}</td><td><span class="tag" style="background:${CC[l.cat]||'#333'}22;color:${CC[l.cat]||'#888'}">${CE[l.cat]||''} ${CL[l.cat]||l.cat}</span></td><td style="font-family:DM Mono,monospace">${l.qty}</td><td style="color:var(--text-dim)">${l.unit}</td><td style="font-family:DM Mono,monospace">${fmtEur(l.price)}</td><td class="poste-price">${fmtEur(l.qty*l.price)}</td><td><button class="btn btn-ghost btn-sm" title="Monter" onclick="moveLigneUp(${i})" ${i===0?'disabled':''}>▲</button><button class="btn btn-ghost btn-sm" title="Descendre" onclick="moveLigneDown(${i})" ${i===(d.lignes.length-1)?'disabled':''}>▼</button><button class="btn btn-ghost btn-sm" title="Modifier" onclick="openEditLigne(${i})">✏️</button><button class="delete-row" onclick="deleteLigne(${i})">×</button></td>`;
     tbody.appendChild(tr);
   });
-  const tvaPct=parseFloat(document.getElementById('dv-tva-pct').value)||0,marginPct=parseFloat(document.getElementById('dv-margin-pct').value)||0;
-  // Prices are stored as TTC
-  const ttcTotal=d.lignes.reduce((s,l)=>s+l.qty*l.price,0);
-  const htTotal=tvaPct>0 ? ttcTotal/(1+tvaPct/100) : ttcTotal;
-  const tva=ttcTotal-htTotal;
-  const marg=htTotal*marginPct/100;
-  document.getElementById('dv-subtotal-raw').textContent=fmtEur(htTotal);
+  const marginPct=parseFloat(document.getElementById('dv-margin-pct').value)||0;
+  const subtotal=d.lignes.reduce((s,l)=>s+l.qty*l.price,0);
+  const marg=subtotal*marginPct/100;
+  document.getElementById('dv-subtotal-raw').textContent=fmtEur(subtotal);
   document.getElementById('dv-margin-label').textContent='Marge ('+marginPct+'%)';
   document.getElementById('dv-margin-val').textContent='+'+fmtEur(marg);
-  document.getElementById('dv-tva-label').textContent='TVA ('+tvaPct+'%) — incluse';
-  document.getElementById('dv-tva').textContent=fmtEur(tva);
-  document.getElementById('dv-ttc').textContent=fmtEur(ttcTotal+marg);
-  d.tvaPct=tvaPct;d.marginPct=marginPct;
+  document.getElementById('dv-ttc').textContent=fmtEur(subtotal+marg);
+  d.marginPct=marginPct;
 }
 
 let _nt=null;function autoSaveDevisNotes(){clearTimeout(_nt);_nt=setTimeout(async()=>{const d=getCurrentDevis();if(d){d.notes=document.getElementById('dv-notes').value;await saveState();}},600);}
@@ -2435,6 +2517,7 @@ function buildPDFHTML(d){
   ${s.siret?'<div style="margin-top:16px;padding-top:10px;border-top:1px solid #e8dcc8;font-size:7.5pt;color:#888;text-align:center;">SIRET : '+esc(s.siret)+'</div>':''}
 </div>`;
 
+  _printSource = 'devis';
   document.getElementById('pdf-render').innerHTML=html;
   document.querySelectorAll('.section').forEach(sec=>{sec.classList.remove('active');sec.style.display='none';});
   const printSec=document.getElementById('section-print-preview');
@@ -2442,10 +2525,40 @@ function buildPDFHTML(d){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
 }
 
+let _printSource = 'devis';
 function closePrintPreview(){
   document.getElementById('section-print-preview').classList.remove('active');
-  showSection('devis');
-  openDevis(state.currentDevisId);
+  const backBtn = document.querySelector('#print-toolbar .back-btn');
+  if(backBtn) backBtn.textContent = '← Retour au devis';
+  if(_printSource === 'synthese'){
+    showSection('detail');
+    renderDetail();
+  } else {
+    showSection('devis');
+    openDevis(state.currentDevisId);
+  }
+}
+function printProjectSynthese(){
+  const p = getCurrentProject(); if(!p) return;
+  renderSynthese();
+  const recapEl = document.getElementById('synthese-recap');
+  const textEl = document.getElementById('synthese-text');
+  const recapHtml = recapEl ? recapEl.innerHTML : '';
+  const text = (textEl && textEl.value) ? textEl.value : (p.syntheseText || '');
+  const html = `<div style="font-family:'DM Sans',sans-serif;color:#1a1712;padding:24px;max-width:700px;">
+    <h1 style="font-size:20px;margin-bottom:16px;">Synthèse — ${esc(p.name)}</h1>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-bottom:20px;">${recapHtml.replace(/class="renta-card"/g,'style="background:#f5f0e8;border:1px solid #e8dcc8;border-radius:9px;padding:14px;text-align:center;"')}</div>
+    ${text ? '<div style="white-space:pre-wrap;font-size:13px;line-height:1.6;border-top:1px solid #e8dcc8;padding-top:16px;">'+esc(text)+'</div>' : ''}
+  </div>`;
+  _printSource = 'synthese';
+  document.getElementById('pdf-render').innerHTML = html;
+  const printSec = document.getElementById('section-print-preview');
+  if(printSec){ printSec.classList.add('active'); printSec.style.display = 'block'; printSec.scrollIntoView({behavior:'smooth'}); }
+  const backBtn = document.querySelector('#print-toolbar .back-btn');
+  if(backBtn) backBtn.textContent = '← Retour au projet';
+  document.querySelectorAll('.section').forEach(sec=>{ sec.classList.remove('active'); sec.style.display = 'none'; });
+  printSec.classList.add('active'); printSec.style.display = 'block';
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
 }
 
 // ==================== CALCULATOR ====================
@@ -3341,7 +3454,9 @@ function renderRenta(){
   const p = getCurrentProject(); if(!p) return;
   const prixVenteEl = document.getElementById('renta-prix-vente');
   if(!prixVenteEl) return;
-  if(p.prixVente) prixVenteEl.value = p.prixVente;
+  if(document.activeElement !== prixVenteEl){
+    prixVenteEl.value = (p.prixVente != null && p.prixVente !== '') ? p.prixVente : '';
+  }
   const prixVente = parseFloat(prixVenteEl.value)||0;
   const coutMat = (p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0)+(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
   const mins = (p.times||[]).reduce((s,t)=>s+t.mins,0);
@@ -3359,7 +3474,7 @@ function renderRenta(){
   const detail = document.getElementById('renta-detail');
   if(prixVente){
     detail.innerHTML = `<div style="background:var(--surface2);border-radius:9px;padding:14px;font-size:13px;line-height:1.9;">
-      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:7px;margin-bottom:7px;"><span style="color:var(--text-dim)">Prix de vente TTC</span><span style="font-family:DM Mono,monospace">${fmtEur(prixVente)}</span></div>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:7px;margin-bottom:7px;"><span style="color:var(--text-dim)">Prix de vente</span><span style="font-family:DM Mono,monospace">${fmtEur(prixVente)}</span></div>
       <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim)">Coût matières</span><span style="font-family:DM Mono,monospace;color:var(--red)">- ${fmtEur(coutMat)}</span></div>
       <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:7px;font-weight:500;"><span>Marge brute</span><span style="font-family:DM Mono,monospace;color:${marge>=0?'var(--green)':'var(--red)'}">${fmtEur(marge)}</span></div>
       ${mins?'<div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="color:var(--text-dim)">Temps passé</span><span style="font-family:DM Mono,monospace">'+fmtTime(mins)+'</span></div>':''}
