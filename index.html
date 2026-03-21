@@ -728,6 +728,11 @@ window.addEventListener('unhandledrejection', function(e) {
   <div class="page-header"><h1>Mes Projets</h1><p>// suivi des coûts matière et du temps passé</p></div>
   <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
     <button class="btn btn-primary" onclick="openNewProject()">＋ Nouveau projet</button>
+    <select id="filter-projets-archived" style="padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" onchange="renderProjects()">
+      <option value="actifs">Projets actifs</option>
+      <option value="archives">Archivés sans suite</option>
+      <option value="tous">Tous</option>
+    </select>
     <input type="text" id="filter-projets" placeholder="Filtrer par nom…" style="max-width:220px;padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" oninput="renderProjects()">
     <button class="btn btn-ghost btn-sm" onclick="exportProjectsCSV()">📥 Export CSV</button>
   </div>
@@ -744,6 +749,7 @@ window.addEventListener('unhandledrejection', function(e) {
       <button class="btn btn-ghost" onclick="openEditProject()">✏️ Modifier</button>
       <button class="btn btn-ghost" onclick="duplicateCurrentProject()" title="Dupliquer ce projet">⧉ Dupliquer</button>
       <button class="btn btn-purple" onclick="createDevisFromProject()">📋 Créer un devis</button>
+      <span id="detail-archive-btn"></span>
       <button class="btn btn-danger" onclick="deleteCurrentProject()">🗑</button>
     </div>
   </div>
@@ -1675,7 +1681,7 @@ function showSection(id){
   if(id==='planning')renderPlanning();
   if(id==='stats')renderStats();
   if(id==='catalogue-resine')renderCatalogueResines();
-  if(id==='calculatrice'){ if(!state._fromProjectResin){ state.calcReturnToProject=false; var b=document.getElementById('btn-calc-to-project'); if(b)b.style.display='none'; } state._fromProjectResin=false; renderCalcSimulations(); renderCalcAvgResin(); }
+  if(id==='calculatrice'){ if(!state._fromProjectResin){ state.calcReturnToProject=false; var b=document.getElementById('btn-calc-to-project'); if(b)b.style.display='none'; } state._fromProjectResin=false; populateCalcResineSelect(); renderCalcSimulations(); renderCalcAvgResin(); }
   if(id==='scanner'){const sel=document.getElementById('scan-project-select');if(sel){sel.innerHTML='<option value="">— Choisir un projet —</option>';state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});}}
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
@@ -1762,13 +1768,19 @@ async function saveProject(){
   await saveState();closeModal('modal-project');state.editMode?renderDetail():renderProjects();
 }
 async function deleteCurrentProject(){if(!confirm('Supprimer ce projet ?'))return;state.projects=state.projects.filter(p=>p.id!==state.currentId);await saveState();showSection('projets');}
+async function archiveProject(id){const p=state.projects.find(pr=>pr.id===id);if(!p)return;p.archived=true;await saveState();renderProjects();if(state.currentId===id&&typeof renderDetail==='function')renderDetail();}
+async function restoreProject(id){const p=state.projects.find(pr=>pr.id===id);if(!p)return;p.archived=false;await saveState();renderProjects();if(state.currentId===id&&typeof renderDetail==='function')renderDetail();}
 function getCurrentProject(){return state.projects.find(p=>p.id===state.currentId);}
 function openProject(id){state.currentId=id;showSection('detail');renderDetail();document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));}
 
 function getFilteredProjects(){
   const q=(document.getElementById('filter-projets')||{}).value.trim().toLowerCase();
-  if(!q)return state.projects||[];
-  return (state.projects||[]).filter(p=>(p.name||'').toLowerCase().includes(q)||(p.desc||'').toLowerCase().includes(q));
+  const archFilter=(document.getElementById('filter-projets-archived')||{}).value||'actifs';
+  var list=state.projects||[];
+  if(archFilter==='actifs')list=list.filter(p=>!p.archived);
+  else if(archFilter==='archives')list=list.filter(p=>!!p.archived);
+  if(!q)return list;
+  return list.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.desc||'').toLowerCase().includes(q));
 }
 function renderProjects(){
   const grid=document.getElementById('projects-grid'),empty=document.getElementById('projects-empty');
@@ -1789,6 +1801,7 @@ function renderProjects(){
         <div class="stat"><div class="stat-val">${(p.postes||[]).length+(p.resins||[]).length}</div><div class="stat-label">Postes</div></div>
       </div>
       <div class="project-card-actions">
+        ${p.archived?'<button class="btn btn-ghost btn-sm" title="Récupérer ce projet" onclick="event.stopPropagation();restoreProject('+p.id+')">↩ Restaurer</button>':'<button class="btn btn-ghost btn-sm" title="Archiver ce projet (sans suite)" onclick="event.stopPropagation();archiveProject('+p.id+')">📥 Archiver</button>'}
         <button class="btn btn-ghost btn-sm" title="Dupliquer ce projet" onclick="event.stopPropagation();duplicateProject(${p.id})">⧉ Dupliquer</button>
       </div>`;
     grid.appendChild(card);
@@ -1799,6 +1812,7 @@ function renderDetail(){
   const p=getCurrentProject();if(!p)return;
   const nameEl=document.getElementById('detail-name');if(!nameEl)return;
   nameEl.textContent=p.name;
+  const archBtn=document.getElementById('detail-archive-btn');if(archBtn)archBtn.innerHTML=p.archived?'<button class="btn btn-ghost" onclick="restoreProject(state.currentId)">↩ Restaurer</button>':'<button class="btn btn-ghost" onclick="archiveProject(state.currentId)" title="Archiver sans suite">📥 Archiver</button>';
   document.getElementById('detail-desc').textContent=(p.desc||'—')+(p.shape?' · '+SL[p.shape]:'');
   var clientEl=document.getElementById('detail-client');if(clientEl){var cl=p.clientId?(state.clients||[]).find(function(c){return c.id===p.clientId;}):null;clientEl.textContent=cl?('👤 '+(cl.firstname||'').trim()+' '+(cl.lastname||'').trim()).trim():'';clientEl.style.display=cl?'block':'none';}
   var originEl=document.getElementById('detail-origin');if(originEl){var ol={'bouche-a-oreille':'Bouche-à-oreille',instagram:'Instagram',salon:'Salon / foire',site:'Site web',vinted:'Vinted',etsy:'Etsy',leboncoin:'Le Bon Coin',autre:'Autre'};originEl.textContent=p.contactOrigin?('📍 '+ (ol[p.contactOrigin]||p.contactOrigin)):'';originEl.style.display=p.contactOrigin?'block':'none';}
@@ -2114,10 +2128,12 @@ function openNewDevis(projId){
   state.editMode=false;document.getElementById('modal-devis-title').textContent='Nouveau devis';
   document.getElementById('dv-ref-input').value=genRef();
   document.getElementById('dv-date-input').value=new Date().toISOString().split('T')[0];
-  document.getElementById('dv-name-input').value='';document.getElementById('dv-client-input').value='';
+  var projName='',projClient='',projClientId=null;
+  if(projId){const p=state.projects.find(pr=>pr.id==projId);if(p){projName=p.name||'';if(p.clientId){const cl=(state.clients||[]).find(c=>c.id===p.clientId);if(cl){projClient=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'';projClientId=p.clientId;}}}}
+  document.getElementById('dv-name-input').value=projName;document.getElementById('dv-client-input').value=projClient;
   const sel=document.getElementById('dv-proj-link');sel.innerHTML='';
   state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;if(projId&&p.id==projId)o.selected=true;sel.appendChild(o);});
-  const clSel=document.getElementById('dv-client-select');if(clSel){clSel.innerHTML='<option value="">— Nouveau client (saisie libre) —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value='';}
+  const clSel=document.getElementById('dv-client-select');if(clSel){clSel.innerHTML='<option value="">— Nouveau client (saisie libre) —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value=projClientId||'';}
   openModal('modal-devis');
 }
 function openEditDevis(){
@@ -2621,8 +2637,10 @@ function printProjectSynthese(){
   const chartHtml = document.getElementById('synthese-chart') ? document.getElementById('synthese-chart').innerHTML : '';
   const rentaHtml = document.getElementById('synthese-renta') ? document.getElementById('synthese-renta').innerHTML : '';
   const text = (textEl && textEl.value) ? textEl.value : (p.syntheseText || '');
+  const clPrint=p.clientId?(state.clients||[]).find(c=>c.id===p.clientId):null;const clientName=clPrint?((clPrint.firstname||'')+' '+(clPrint.lastname||'')).trim():'';
   const html = `<div class="print-synthese-content" style="font-family:'DM Sans',sans-serif;color:#1a1712;padding:24px;max-width:700px;">
     <h1 style="font-size:20px;margin-bottom:16px;">Synthèse — ${esc(p.name)}</h1>
+    ${clientName?'<p style="font-size:13px;color:#555;margin-bottom:12px;">Client : <strong>'+esc(clientName)+'</strong></p>':''}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-bottom:20px;">${recapHtml.replace(/class="renta-card"/g,'style="background:#f5f0e8;border:1px solid #e8dcc8;border-radius:9px;padding:14px;text-align:center;"')}</div>
     ${postesHtml?'<div style="margin-bottom:16px;"><strong>Matières</strong><div style="margin-top:8px;font-size:12px;">'+postesHtml+'</div></div>':''}
     ${resinsHtml?'<div style="margin-bottom:16px;"><strong>Résines</strong><div style="margin-top:8px;font-size:12px;">'+resinsHtml+'</div></div>':''}
@@ -2704,7 +2722,26 @@ function calcResinCost(liters){
   document.getElementById('cr-partB').textContent=(pB||0).toFixed(3).replace('.',',')+' kg';
   document.getElementById('cr-total').textContent=fmtEur(cost);
 }
-
+function populateCalcResineSelect(){
+  const sel=document.getElementById('calc-resine-select');if(!sel)return;
+  sel.innerHTML='<option value="">— Choisir une résine —</option>';
+  if(!state.resines||!state.resines.length)return;
+  state.resines.forEach((r,i)=>{
+    const o=document.createElement('option');o.value=i;o.textContent=(r.name||'')+(r.brand?' — '+(r.brand||''):'');
+    sel.appendChild(o);
+  });
+}
+function onCalcResineSelect(){
+  const sel=document.getElementById('calc-resine-select');if(!sel||sel.value==='')return;
+  const i=parseInt(sel.value,10);const r=state.resines&&state.resines[i];if(!r)return;
+  const tot=(r.ratioA||2)+(r.ratioB||1);const dens=r.density||1.1;
+  const blended=r.pricePerLiter!=null?r.pricePerLiter/dens:(parseFloat(r.priceA)||0)*(r.ratioA||2)/tot+(parseFloat(r.priceB)||0)*(r.ratioB||1)/tot;
+  document.getElementById('price-per-kg').value=blended.toFixed(2);
+  document.getElementById('resin-density').value=dens;
+  document.getElementById('ratio-a').value=r.ratioA!=null?r.ratioA:100;
+  document.getElementById('ratio-b').value=r.ratioB!=null?r.ratioB:50;
+  calcResinCost();
+}
 
 // ==================== AUTOCOMPLETE POSTES ====================
 // Build a deduplicated catalog of previously used postes across all projects
@@ -3583,6 +3620,7 @@ function renderSynthese(){
   const p=getCurrentProject();if(!p)return;
   const recapEl=document.getElementById('synthese-recap');const textEl=document.getElementById('synthese-text');
   if(!recapEl)return;
+  const cl=p.clientId?(state.clients||[]).find(c=>c.id===p.clientId):null;const clientName=cl?((cl.firstname||'')+' '+(cl.lastname||'')).trim():'';
   const estim=getProjectEstimatedCost(p);
   const reel=getProjectActualCost(p);
   const pv=p.prixVente||0;
@@ -3590,7 +3628,7 @@ function renderSynthese(){
   const margeReel=pv-reel;
   const margeEstimPct=pv?Math.round(margeEstim/pv*100):null;
   const margeReelPct=pv?Math.round(margeReel/pv*100):null;
-  recapEl.innerHTML=`
+  recapEl.innerHTML=(clientName?'<div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Client : <strong style="color:var(--text);">'+esc(clientName)+'</strong></div>':'')+`
     <div class="renta-card"><div class="renta-val renta-amber">${fmtEur(estim)}</div><div class="renta-label">Estimation initiale</div></div>
     <div class="renta-card"><div class="renta-val" style="color:var(--resin)">${fmtEur(reel)}</div><div class="renta-label">Coût final</div></div>
     <div class="renta-card"><div class="renta-val" style="color:var(--purple)">${fmtEur(pv)}</div><div class="renta-label">Prix de vente</div></div>
@@ -3693,7 +3731,8 @@ function openNewStock(){state.editMode=false;state.editStockIdx=-1;document.getE
 function openEditStock(i){const s=state.stocks[i];state.editMode=true;state.editStockIdx=i;document.getElementById('modal-stock-title').textContent='Modifier';document.getElementById('st-name').value=s.name;document.getElementById('st-cat').value=s.cat||'misc';document.getElementById('st-unit').value=s.unit||'pièce';document.getElementById('st-qty').value=s.qty;document.getElementById('st-min').value=s.min;document.getElementById('st-price').value=s.price||0;document.getElementById('st-supplier').value=s.supplier||'';openModal('modal-stock');}
 async function saveStock(){
   const name=document.getElementById('st-name').value.trim();if(!name)return alert('Saisissez un nom.');
-  const entry={name,cat:document.getElementById('st-cat').value,unit:document.getElementById('st-unit').value,qty:parseFloat(document.getElementById('st-qty').value)||0,min:parseFloat(document.getElementById('st-min').value)||1,price:parseFloat(document.getElementById('st-price').value)||0,supplier:document.getElementById('st-supplier').value.trim()};
+  const minVal=parseFloat(document.getElementById('st-min').value);const min=(!isNaN(minVal)&&minVal>=0)?minVal:1;
+  const entry={name,cat:document.getElementById('st-cat').value,unit:document.getElementById('st-unit').value,qty:parseFloat(document.getElementById('st-qty').value)||0,min,price:parseFloat(document.getElementById('st-price').value)||0,supplier:document.getElementById('st-supplier').value.trim()};
   if(!state.stocks)state.stocks=[];
   if(state.editMode&&state.editStockIdx>=0)state.stocks[state.editStockIdx]=entry;
   else state.stocks.push(entry);
