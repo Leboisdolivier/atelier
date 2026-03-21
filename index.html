@@ -62,6 +62,11 @@ main,#main-content{max-width:1260px;margin:0 auto;padding:32px 36px;min-height:5
 .devis-card-client{font-size:12px;color:var(--text-dim);margin-bottom:12px;}
 .devis-card-total{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--amber-light);}
 .devis-status{display:inline-block;padding:2px 8px;border-radius:20px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.5px;text-transform:uppercase;margin-left:6px;vertical-align:middle;}
+.prospect-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .25s;}
+.prospect-card:hover{border-color:var(--resin-dim);transform:translateY(-2px);}
+.prospect-card-name{font-family:'Playfair Display',serif;font-size:16px;color:var(--text);margin-bottom:4px;}
+.prospect-card-type{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.prospect-card-status{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;margin-top:8px;}
 .status-brouillon{background:rgba(122,110,94,.15);color:var(--text-dim);}
 .status-envoye{background:rgba(41,128,185,.15);color:#5dade2;}
 .status-accepte{background:rgba(39,174,96,.15);color:#58d68d;}
@@ -705,6 +710,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="nav-tab" data-section="stats" onclick="showSection('stats')">📈 Stats</button>
     <button class="nav-tab" data-section="catalogue-resine" onclick="showSection('catalogue-resine')">🧪 Catalogue résine</button>
     <button class="nav-tab" data-section="scanner" onclick="showSection('scanner')">📷 Factures</button>
+    <button class="nav-tab" data-section="prospection" onclick="showSection('prospection')">🔍 Prospection</button>
     <button class="nav-tab" data-section="parametres" onclick="showSection('parametres')">⚙ Paramètres</button>
     <button class="nav-tab" id="btn-global-search" onclick="openGlobalSearch()" title="Recherche (Ctrl+K)" style="margin-left:8px;padding:6px 10px;">🔍</button>
   </div>
@@ -1168,6 +1174,34 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
 </div>
 
+<!-- PROSPECTION -->
+<div id="section-prospection" class="section">
+  <div class="page-header"><h1>Prospection</h1><p>// restaurants, hôtels et architectes d'intérieur</p></div>
+  <div style="margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <button class="btn btn-primary" onclick="prospSwitchMain('restos')" id="prosp-btn-restos">🍽 Restaurants</button>
+    <button class="btn btn-ghost" onclick="prospSwitchMain('hotels')" id="prosp-btn-hotels">🏨 Hôtels</button>
+    <button class="btn btn-ghost" onclick="prospSwitchMain('archis')" id="prosp-btn-archis">📐 Architectes</button>
+    <span style="flex:1;"></span>
+    <select id="prosp-filter-status" style="padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" onchange="renderProspections()">
+      <option value="">Tous les statuts</option>
+      <option value="à contacter">À contacter</option>
+      <option value="contacté">Contacté</option>
+      <option value="devis envoyé">Devis envoyé</option>
+      <option value="client">Client</option>
+      <option value="sans suite">Sans suite</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="exportProspectCSV()">📥 Export CSV</button>
+  </div>
+  <div id="prosp-search-area" style="margin-bottom:16px;">
+    <input type="text" id="prosp-search" placeholder="Rechercher par nom, ville…" style="max-width:300px;padding:10px 14px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" oninput="renderProspections()">
+    <button class="btn btn-resin" onclick="lancerRechercheRestos()" id="prosp-btn-search-restos" style="margin-left:10px;">🔍 Lancer recherche restos</button>
+    <button class="btn btn-resin" onclick="lancerRechercheHotels()" id="prosp-btn-search-hotels" style="margin-left:10px;display:none;">🔍 Lancer recherche hôtels</button>
+    <button class="btn btn-resin" onclick="lancerRechercheArchis()" id="prosp-btn-search-archis" style="margin-left:10px;display:none;">🔍 Lancer recherche archis</button>
+  </div>
+  <div class="projects-grid" id="prosp-cards-grid"></div>
+  <div id="prosp-empty" class="empty" style="display:none;"><div class="empty-icon">🔍</div><h3>Aucun prospect</h3><p>Lancez une recherche ou ajoutez des contacts manuellement.</p></div>
+</div>
+
 <!-- SCANNER FACTURES -->
 <div id="section-scanner" class="section">
   <div class="page-header"><h1>Scanner une facture</h1><p>// l'IA lit votre facture et pré-remplit un poste de coût</p></div>
@@ -1604,7 +1638,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
 <script>
 // ==================== STATE ====================
-let state={projects:[],devis:[],settings:{},currentId:null,currentDevisId:null,editMode:false,calcShape:'rectangle'};
+let state={projects:[],devis:[],settings:{},currentId:null,currentDevisId:null,editMode:false,calcShape:'rectangle',prospects:[],archis:[],prospMain:'restos'};
 
 async function loadState(){
   // 1. Try Firebase first (primary - works everywhere, sync across devices)
@@ -1634,7 +1668,7 @@ async function loadState(){
 }
 let _lastSaveTime = null; let _saveError = null;
 async function saveState(){
-  const data={projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[],simulations:state.simulations||[],pigments:state.pigments||[],pdfPresets:state.pdfPresets||[]};
+  const data={projects:state.projects,devis:state.devis,settings:state.settings,clients:state.clients||[],stocks:state.stocks||[],planning:state.planning||[],resines:state.resines||[],simulations:state.simulations||[],pigments:state.pigments||[],pdfPresets:state.pdfPresets||[],prospects:state.prospects||[],archis:state.archis||[]};
   _saveError = null;
   try {
     if(window._fbStateDoc && window._fbSetDoc){ await window._fbSetDoc(window._fbStateDoc, data); }
@@ -1683,6 +1717,7 @@ function showSection(id){
   if(id==='catalogue-resine')renderCatalogueResines();
   if(id==='calculatrice'){ if(!state._fromProjectResin){ state.calcReturnToProject=false; var b=document.getElementById('btn-calc-to-project'); if(b)b.style.display='none'; } state._fromProjectResin=false; populateCalcResineSelect(); renderCalcSimulations(); renderCalcAvgResin(); }
   if(id==='scanner'){const sel=document.getElementById('scan-project-select');if(sel){sel.innerHTML='<option value="">— Choisir un projet —</option>';state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});}}
+  if(id==='prospection'){prospSwitchMain(state.prospMain||'restos');renderProspections();}
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -4298,6 +4333,85 @@ function openResineSelector() {
   openModal('modal-resine-select');
 }
 
+// ==================== PROSPECTION ====================
+function prospSwitchMain(type){
+  state.prospMain=type;
+  ['prosp-btn-restos','prosp-btn-hotels','prosp-btn-archis'].forEach(id=>{
+    const b=document.getElementById(id);if(!b)return;
+    b.className=b.id==='prosp-btn-'+(type==='restos'?'restos':type==='hotels'?'hotels':'archis')?'btn btn-primary':'btn btn-ghost';
+  });
+  const sr=document.getElementById('prosp-btn-search-restos');const sh=document.getElementById('prosp-btn-search-hotels');const sa=document.getElementById('prosp-btn-search-archis');
+  if(sr)sr.style.display=type==='restos'?'inline-flex':'none';
+  if(sh)sh.style.display=type==='hotels'?'inline-flex':'none';
+  if(sa)sa.style.display=type==='archis'?'inline-flex':'none';
+  renderProspections();
+}
+function prospFilterStatus(){return(document.getElementById('prosp-filter-status')||{}).value||'';}
+function getFilteredProspects(){
+  const main=state.prospMain||'restos';
+  let list=main==='archis'?(state.archis||[]):(state.prospects||[]).filter(p=>main==='restos'?p.type==='resto':p.type==='hotel');
+  const statusFilter=prospFilterStatus();
+  if(statusFilter)list=list.filter(p=>(p.status||'').toLowerCase()===(statusFilter||'').toLowerCase());
+  const q=(document.getElementById('prosp-search')||{}).value.trim().toLowerCase();
+  if(q)list=list.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.ville||'').toLowerCase().includes(q)||(p.adresse||'').toLowerCase().includes(q));
+  return list;
+}
+function renderProspections(){
+  const grid=document.getElementById('prosp-cards-grid');const empty=document.getElementById('prosp-empty');
+  if(!grid)return;
+  grid.innerHTML='';
+  const list=getFilteredProspects();
+  if(!list.length){if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  const main=state.prospMain||'restos';
+  list.forEach((p,i)=>{
+    const card=document.createElement('div');card.className='prospect-card';
+    const idx=main==='archis'?state.archis.indexOf(p):state.prospects.indexOf(p);
+    card.innerHTML=`<div class="prospect-card-type">${main==='restos'?'🍽 Restaurant':main==='hotels'?'🏨 Hôtel':'📐 Architecte'}</div>
+      <div class="prospect-card-name">${esc(p.name||'—')}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">${esc(p.ville||'')} ${p.adresse?' · '+esc(p.adresse):''}</div>
+      ${p.tel?'<div style="font-size:11px;font-family:DM Mono,monospace;">📞 '+esc(p.tel)+'</div>':''}
+      ${p.email?'<div style="font-size:11px;">✉ '+esc(p.email)+'</div>':''}
+      <span class="prospect-card-status" style="background:rgba(62,207,207,.15);color:var(--resin);">${esc(p.status||'À contacter')}</span>`;
+    grid.appendChild(card);
+  });
+}
+function lancerRechercheRestos(){
+  const q=prompt('Ville ou zone de recherche :','');
+  if(!q)return;
+  if(!state.prospects)state.prospects=[];
+  const mock=[{id:Date.now()+1,name:'Le Petit Bistrot',ville:q,type:'resto',status:'à contacter'},{id:Date.now()+2,name:'La Table d\'or',ville:q,type:'resto',status:'à contacter'},{id:Date.now()+3,name:'Restaurant du Centre',ville:q,type:'resto',status:'à contacter'}];
+  mock.forEach(m=>{if(!state.prospects.find(p=>p.name===m.name&&p.ville===m.ville))state.prospects.push(m);});
+  saveState();renderProspections();
+  alert('Recherche effectuée. '+(mock.length)+' restaurant(s) ajouté(s) en exemple. Connectez une API (Google Places, etc.) pour des résultats réels.');
+}
+function lancerRechercheHotels(){
+  const q=prompt('Ville ou zone de recherche :','');
+  if(!q)return;
+  if(!state.prospects)state.prospects=[];
+  const mock=[{id:Date.now()+1,name:'Hôtel du Parc',ville:q,type:'hotel',status:'à contacter'},{id:Date.now()+2,name:'Grand Hôtel',ville:q,type:'hotel',status:'à contacter'}];
+  mock.forEach(m=>{if(!state.prospects.find(p=>p.name===m.name&&p.ville===m.ville))state.prospects.push(m);});
+  saveState();renderProspections();
+  alert('Recherche effectuée. '+(mock.length)+' hôtel(s) ajouté(s) en exemple. Connectez une API pour des résultats réels.');
+}
+function lancerRechercheArchis(){
+  const q=prompt('Ville ou zone de recherche :','');
+  if(!q)return;
+  if(!state.archis)state.archis=[];
+  const mock=[{id:Date.now()+1,name:'Agence Décoration Plus',ville:q,type:'archi',status:'à contacter'},{id:Date.now()+2,name:'Studio Intérieur',ville:q,type:'archi',status:'à contacter'}];
+  mock.forEach(m=>{if(!state.archis.find(a=>a.name===m.name&&a.ville===m.ville))state.archis.push(m);});
+  saveState();renderProspections();
+  alert('Recherche effectuée. '+(mock.length)+' architecte(s) ajouté(s) en exemple. Connectez une API pour des résultats réels.');
+}
+function exportProspectCSV(){
+  const list=getFilteredProspects();
+  const main=state.prospMain||'restos';
+  const typeLabel=main==='restos'?'Restaurant':main==='hotels'?'Hôtel':'Architecte';
+  const rows=[['Type','Nom','Ville','Adresse','Tél','Email','Statut']];
+  list.forEach(p=>rows.push([typeLabel,p.name||'',p.ville||'',(p.adresse||'').replace(/"/g,'""'),p.tel||'',p.email||'',p.status||'']));
+  const csv=rows.map(r=>r.map(c=>'"'+String(c)+'"').join(';')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent('\uFEFF'+csv);a.download='prospects_'+main+'_export.csv';a.click();
+}
 
 // ==================== MOBILE NAV ====================
 function updateMobileNav(sectionId) {
@@ -4306,7 +4420,7 @@ function updateMobileNav(sectionId) {
     t.classList.toggle('active', t.dataset.section === sectionId);
   });
   // Check if active section is in "more" menu
-  const moreItems = ['calculatrice','stocks','planning','stats','scanner','parametres'];
+  const moreItems = ['calculatrice','stocks','planning','stats','prospection','scanner','parametres'];
   const morTab = document.getElementById('mob-tab-more');
   if (morTab) morTab.classList.toggle('active', moreItems.includes(sectionId));
   // Update FAB
@@ -5098,6 +5212,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   </div>
   <div class="mob-more-item" data-section="stats" onclick="showSection('stats');closeMobMore()">
     <span>📈</span><span>Stats</span>
+  </div>
+  <div class="mob-more-item" data-section="prospection" onclick="showSection('prospection');closeMobMore()">
+    <span>🔍</span><span>Prospection</span>
   </div>
   <div class="mob-more-item" data-section="catalogue-resine" onclick="showSection('catalogue-resine');closeMobMore()">
     <span>🧪</span><span>Catalogue résine</span>
