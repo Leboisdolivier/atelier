@@ -453,6 +453,15 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
 .resine-select-btn:hover{background:rgba(62,207,207,.15);border-color:var(--resin);}
 .resine-select-btn.selected{background:rgba(62,207,207,.2);border-color:var(--resin);color:var(--text);}
 
+/* ===== CATALOGUE PIGMENTS ===== */
+.pigments-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:20px;}
+.pigment-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:18px;position:relative;overflow:hidden;}
+.pigment-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#e91e63,rgba(233,30,99,.25));}
+.pigment-name{font-family:'Playfair Display',serif;font-size:16px;color:var(--text);margin-bottom:2px;}
+.pigment-brand{font-size:11px;color:var(--text-dim);font-family:'DM Mono',monospace;margin-bottom:10px;}
+.pigment-prix{font-family:'DM Mono',monospace;font-size:14px;color:#e91e63;font-weight:500;margin-bottom:8px;}
+.pigment-select-btn{width:100%;background:rgba(233,30,99,.08);border:1px solid rgba(233,30,99,.22);border-radius:7px;padding:7px;color:#e91e63;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;}
+.pigment-select-btn:hover{background:rgba(233,30,99,.14);border-color:#e91e63;}
 
 /* ===== MOBILE NAV (bottom tab bar) ===== */
 .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(15,13,10,.97);border-top:1px solid var(--border);backdrop-filter:blur(16px);padding:0 4px;padding-bottom:env(safe-area-inset-bottom,0);}
@@ -495,7 +504,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
   .projects-grid{grid-template-columns:1fr!important;}
   .clients-grid{grid-template-columns:1fr!important;}
   .stocks-grid{grid-template-columns:1fr!important;}
-  .resines-grid{grid-template-columns:1fr!important;}
+  .resines-grid,.pigments-grid{grid-template-columns:1fr!important;}
   .stats-grid{grid-template-columns:1fr!important;}
   .client-detail-grid{grid-template-columns:1fr!important;}
 
@@ -579,6 +588,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--amber);}select option
 .transaction-amount{font-family:'DM Mono',monospace;font-size:14px;color:var(--green);font-weight:500;white-space:nowrap;}
 .transaction-actions{display:flex;gap:4px;opacity:0;transition:opacity .2s;}
 .transaction-item:hover .transaction-actions{opacity:1;}
+.transaction-item.transaction-prevu{border-left:3px solid var(--amber);background:rgba(212,130,10,.06);}
+.tx-badge-prevu{font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:1px 6px;border-radius:4px;background:rgba(212,130,10,.2);color:var(--amber-light);margin-right:6px;}
+.tx-badge-flow{font-size:9px;padding:1px 6px;border-radius:4px;font-family:'DM Mono',monospace;margin-right:4px;}
+.tx-flow-acompte{background:rgba(233,30,99,.15);color:#ff8dc0;}
+.tx-flow-solde{background:rgba(62,207,207,.15);color:var(--resin);}
+.tx-flow-total{background:var(--surface2);color:var(--text-dim);}
+.encaissements-prevus-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:20px;}
+.encaissements-prevus-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:10px;}
+.enc-prev-cell{font-size:12px;color:var(--text-dim);}
+.enc-prev-val{font-family:'DM Mono',monospace;font-size:15px;margin-top:3px;}
 .platform-direct{background:rgba(212,130,10,.15);color:var(--amber-light);}
 .platform-etsy{background:rgba(240,100,50,.15);color:#f06432;}
 .platform-vinted{background:rgba(9,182,135,.15);color:#09b687;}
@@ -709,6 +728,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="nav-tab" data-section="planning" onclick="showSection('planning')">📅 Planning</button>
     <button class="nav-tab" data-section="stats" onclick="showSection('stats')">📈 Stats</button>
     <button class="nav-tab" data-section="catalogue-resine" onclick="showSection('catalogue-resine')">🧪 Catalogue résine</button>
+    <button class="nav-tab" data-section="catalogue-pigment" onclick="showSection('catalogue-pigment')">🎨 Catalogue pigments</button>
     <button class="nav-tab" data-section="scanner" onclick="showSection('scanner')">📷 Factures</button>
     <button class="nav-tab" data-section="prospection" onclick="showSection('prospection')">🔍 Prospection</button>
     <button class="nav-tab" data-section="parametres" onclick="showSection('parametres')">⚙ Paramètres</button>
@@ -1012,6 +1032,11 @@ window.addEventListener('unhandledrejection', function(e) {
     <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Devis envoyés il y a plus de 7 jours sans réponse.</p>
     <div id="dash-devis-relancer"></div>
   </div>
+  <div class="dash-panel" style="margin-top:18px;">
+    <div class="section-title">Encaissements à venir (tous clients)</div>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Montants <strong>prévus</strong>, dissociés : acomptes vs soldes (dates sur plusieurs mois possibles).</p>
+    <div id="dash-encaissements-prevus"></div>
+  </div>
 </div>
 
 <!-- STOCKS -->
@@ -1066,6 +1091,16 @@ window.addEventListener('unhandledrejection', function(e) {
   <div id="catalogue-resines-empty" class="empty" style="display:none;"><div class="empty-icon">🧪</div><h3>Aucune résine au catalogue</h3><p>Ajoutez des résines ici ou depuis un projet ; elles seront réutilisables dans la calculatrice et les devis.</p></div>
 </div>
 
+<!-- CATALOGUE PIGMENTS -->
+<div id="section-catalogue-pigment" class="section">
+  <div class="page-header"><h1>Catalogue des pigments</h1><p>// pigments, prix d'achat réel — réutilisables dans les postes « Pigment » des projets</p></div>
+  <div style="margin-bottom:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <button class="btn btn-primary" onclick="openNewPigmentCatalog()" style="background:rgba(233,30,99,.2);border-color:rgba(233,30,99,.35);color:#ff9ec4;">＋ Nouveau pigment</button>
+  </div>
+  <div class="pigments-grid" id="catalogue-pigments-grid"></div>
+  <div id="catalogue-pigments-empty" class="empty" style="display:none;"><div class="empty-icon">🎨</div><h3>Aucun pigment au catalogue</h3><p>Ajoutez des pigments ici ou via un poste de projet en catégorie « Pigment ».</p></div>
+</div>
+
 <!-- STATISTIQUES -->
 <div id="section-stats" class="section">
   <div class="page-header"><h1>Statistiques</h1><p>// analyse commerciale de votre activité</p></div>
@@ -1093,7 +1128,7 @@ window.addEventListener('unhandledrejection', function(e) {
     </div>
     <div class="stats-grid">
       <div class="stats-panel">
-        <div class="section-title">Marge moyenne par projet</div>
+        <div class="section-title">Marge moyenne par projet (sur coût réel si renseigné)</div>
         <div id="stats-margins"></div>
       </div>
       <div class="stats-panel">
@@ -1149,6 +1184,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
   <!-- KPIs client -->
   <div class="client-kpis" id="cl-kpis"></div>
+  <div id="cl-encaissements-prevus"></div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
     <div>
@@ -1166,11 +1202,11 @@ window.addEventListener('unhandledrejection', function(e) {
   <!-- Historique transactions -->
   <div class="client-info-block">
     <div class="transactions-header">
-      <div class="section-title" style="margin:0;">💳 Historique des achats</div>
-      <button class="btn btn-primary btn-sm" onclick="openNewTransaction()">＋ Ajouter un achat</button>
+      <div class="section-title" style="margin:0;">💳 Encaissements (reçus et à venir)</div>
+      <button class="btn btn-primary btn-sm" onclick="openNewTransaction()">＋ Ajouter</button>
     </div>
     <div id="cl-transactions-list"></div>
-    <div id="cl-transactions-empty" style="color:var(--text-dim);font-size:12px;padding:12px 0;display:none;">Aucun achat enregistré. Ajoutez les achats passés pour suivre le CA client.</div>
+    <div id="cl-transactions-empty" style="color:var(--text-dim);font-size:12px;padding:12px 0;display:none;">Aucun encaissement. Enregistrez les acomptes perçus, les soldes à recevoir (même sur un autre mois) ou des encaissements prévus.</div>
   </div>
 </div>
 
@@ -1267,6 +1303,11 @@ window.addEventListener('unhandledrejection', function(e) {
 <div id="section-parametres" class="section">
   <div class="page-header"><h1>Paramètres</h1><p>// informations de votre entreprise</p></div>
   <div style="max-width:740px;">
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
+      <button type="button" class="nav-tab" id="params-tab-entreprise" onclick="switchParamsTab('entreprise')" style="margin:0;">🏢 Entreprise & CGV</button>
+      <button type="button" class="nav-tab" id="params-tab-resines" onclick="switchParamsTab('resines')" style="margin:0;">🧪 Résines</button>
+    </div>
+    <div id="params-pane-entreprise">
     <div class="settings-panel">
       <div class="section-title">Identité de l'entreprise</div>
       <div class="settings-grid">
@@ -1292,11 +1333,19 @@ window.addEventListener('unhandledrejection', function(e) {
       <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Ces CGV seront imprimées sur la 2ème page du PDF. Format : sautez une ligne entre chaque article.</p>
       <textarea id="set-cgv" rows="14" style="font-size:12px;line-height:1.6;"></textarea>
     </div>
+    <div class="settings-panel">
+      <div class="section-title">Catalogues matières</div>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Gestion complète sur des pages dédiées (comme pour le catalogue résine).</p>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="showSection('catalogue-resine')">🧪 Catalogue résine</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="showSection('catalogue-pigment')">🎨 Catalogue pigments</button>
+    </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <button class="btn btn-primary" onclick="saveSettings()">💾 Enregistrer les paramètres</button>
       <button class="btn btn-ghost" onclick="openRestoreBackup()">📥 Restaurer une sauvegarde</button>
       <button class="btn btn-ghost" onclick="exportMobile()">📱 Exporter pour mobile</button>
       <button class="btn btn-ghost" onclick="importFromDrive()">☁️ Importer depuis Drive</button>
+      <span id="settings-saved" style="color:var(--green);font-family:'DM Mono',monospace;font-size:11px;display:none;">✓ Enregistré</span>
+    </div>
     </div><!-- /params-pane-entreprise -->
 
     <!-- CATALOGUE RÉSINES PANE -->
@@ -1306,14 +1355,7 @@ window.addEventListener('unhandledrejection', function(e) {
       </div>
       <div class="resines-grid" id="resines-grid"></div>
       <div id="resines-empty" class="empty" style="display:none;"><div class="empty-icon">🧪</div><h3>Aucune résine</h3><p>Ajoutez vos résines avec leurs caractéristiques pour les retrouver dans la calculatrice.</p></div>
-    </div>
-    <div class="settings-panel" style="margin-top:20px;">
-      <div class="section-title">Catalogue pigments</div>
-      <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">S'enrichit des lignes « Pigment » saisies dans les projets et devis.</p>
-      <div id="params-pigments-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-      <div id="params-pigments-empty" style="display:none;font-size:12px;color:var(--text-dim);">Aucun pigment encore. Ajoutez un poste ou une ligne devis en catégorie « Pigment ».</div>
-    </div>
-      <span id="settings-saved" style="color:var(--green);font-family:'DM Mono',monospace;font-size:11px;display:none;">✓ Enregistré</span>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:16px;">Astuce : la page <strong>Catalogue résine</strong> du menu principal offre la même grille avec les mêmes actions.</p>
     </div>
   </div>
 </div>
@@ -1396,6 +1438,11 @@ window.addEventListener('unhandledrejection', function(e) {
       <div class="form-group"><label>Unité</label>
         <select id="poste-unit"><option>kg</option><option>L</option><option>m²</option><option>m</option><option>ml</option><option>pièce</option><option>rouleau</option><option>boîte</option><option>lot</option><option>forfait</option></select>
       </div>
+    </div>
+    <div id="poste-pigment-catalogue-wrap" style="display:none;margin-bottom:12px;padding:12px;background:var(--surface2);border-radius:8px;border:1px solid rgba(233,30,99,.2);">
+      <div class="form-group"><label>Pigment du catalogue (optionnel)</label>
+        <select id="poste-pigment-catalogue" onchange="onPostePigmentCatalogueChange()"><option value="">— Saisie libre —</option></select></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="closeModal('modal-poste');showSection('catalogue-pigment');">📋 Ouvrir le catalogue pigments</button>
     </div>
     <div id="poste-pigment-fields" style="display:none;margin-bottom:12px;padding:12px;background:var(--surface2);border-radius:8px;">
       <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Ratio poids pigment / poids résine → quantité calculée</div>
@@ -1708,13 +1755,14 @@ function showSection(id){
   updateMobileNav(id);
   if(id==='projets')renderProjects();
   if(id==='devis')renderDevisList();
-  if(id==='parametres'){loadSettingsUI();switchParamsTab('entreprise');renderParamsPigments();}
+  if(id==='parametres'){loadSettingsUI();switchParamsTab('entreprise');}
   if(id==='clients')renderClients();
   if(id==='dashboard')renderDashboard();
   if(id==='stocks')renderStocks();
   if(id==='planning')renderPlanning();
   if(id==='stats')renderStats();
   if(id==='catalogue-resine')renderCatalogueResines();
+  if(id==='catalogue-pigment')renderCataloguePigments();
   if(id==='calculatrice'){ if(!state._fromProjectResin){ state.calcReturnToProject=false; var b=document.getElementById('btn-calc-to-project'); if(b)b.style.display='none'; } state._fromProjectResin=false; populateCalcResineSelect(); renderCalcSimulations(); renderCalcAvgResin(); }
   if(id==='scanner'){const sel=document.getElementById('scan-project-select');if(sel){sel.innerHTML='<option value="">— Choisir un projet —</option>';state.projects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});}}
   if(id==='prospection'){prospSwitchMain(state.prospMain||'restos');renderProspections();}
@@ -1789,6 +1837,20 @@ const CC={wood:'#a0632a',resin:'#3ecfcf',mold:'#9b59b6',tape:'#e67e22',finish:'#
 const CL={wood:'Bois',resin:'Résine',mold:'Moule',tape:'Scotch/Film',finish:'Finition',tools:'Outillage',labor:'M.O.',pigment:'Pigment',misc:'Divers',pieds:'Pieds',transport:'Transport'};
 const CE={wood:'🪵',resin:'🧪',mold:'📐',tape:'🏷',finish:'✨',tools:'🔧',labor:'👷',pigment:'🎨',misc:'📦',pieds:'🦶',transport:'🚚'};
 const SL={rectangle:'Rectangle',round:'Rond',oval:'Ovale',triangle:'Triangle',lshape:'Forme L',ring:'Anneau',''  :'—'};
+
+function ensurePigmentsNormalized(){
+  if(!state.pigments)state.pigments=[];
+  if(state.pigments.length&&typeof state.pigments[0]==='string'){
+    state.pigments=state.pigments.map(function(n){return{name:String(n),brand:'',notes:'',prixAchatReel:null};});
+    return true;
+  }
+  return false;
+}
+function clientDisplayNameById(clientId){
+  if(clientId==null||clientId==='')return '';
+  var cl=(state.clients||[]).find(function(c){return c.id===clientId;});
+  return cl?(((cl.firstname||'')+' '+(cl.lastname||'')).trim()):'';
+}
 
 // ==================== PROJECTS ====================
 function openNewProject(){state.editMode=false;document.getElementById('modal-project-title').textContent='Nouveau projet';['proj-name','proj-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('proj-shape').value='';document.getElementById('proj-contact-origin').value='';const clSel=document.getElementById('proj-client-link');if(clSel){clSel.innerHTML='<option value="">— Aucun —</option>';(state.clients||[]).forEach(cl=>{const o=document.createElement('option');o.value=cl.id;o.textContent=((cl.firstname||'')+' '+(cl.lastname||'')).trim()||'Client';clSel.appendChild(o);});clSel.value='';}openModal('modal-project');}
@@ -1972,17 +2034,54 @@ function renderChart(p){
 }
 
 // POSTES
-function togglePostePigmentFields(){var cat=document.getElementById('poste-cat').value;var el=document.getElementById('poste-pigment-fields');if(el)el.style.display=cat==='pigment'?'block':'none';}
+function fillPostePigmentCatalogueSelect(selIdx){
+  ensurePigmentsNormalized();
+  var sel=document.getElementById('poste-pigment-catalogue');
+  if(!sel)return;
+  sel.innerHTML='<option value="">— Saisie libre —</option>';
+  (state.pigments||[]).forEach(function(pg,i){
+    if(typeof pg==='string')return;
+    var o=document.createElement('option');
+    o.value=String(i);
+    o.textContent=pg.name||('Pigment '+(i+1));
+    sel.appendChild(o);
+  });
+  if(selIdx!=null&&selIdx!==''&&!isNaN(selIdx))sel.value=String(selIdx);else sel.value='';
+}
+function onPostePigmentCatalogueChange(){
+  var sel=document.getElementById('poste-pigment-catalogue');
+  if(!sel||sel.value==='')return;
+  ensurePigmentsNormalized();
+  var i=parseInt(sel.value,10);
+  var pg=state.pigments[i];
+  if(!pg||typeof pg==='string')return;
+  document.getElementById('poste-name').value=pg.name||'';
+  var pr=pg.prixAchatReel;
+  if(pr!=null&&pr!==''){
+    var pp=document.getElementById('poste-price');
+    var ap=document.getElementById('poste-price-actual');
+    if(pp&&!pp.value)pp.value=pr;
+    if(ap&&!ap.value)ap.value=pr;
+  }
+}
+function togglePostePigmentFields(){var cat=document.getElementById('poste-cat').value;var el=document.getElementById('poste-pigment-fields');var cw=document.getElementById('poste-pigment-catalogue-wrap');var show=cat==='pigment';if(el)el.style.display=show?'block':'none';if(cw){cw.style.display=show?'block':'none';if(show)fillPostePigmentCatalogueSelect();}}
 function calcPostePigmentQty(){var r=parseFloat(document.getElementById('poste-pigment-ratio').value)||0;var w=parseFloat(document.getElementById('poste-pigment-resin-kg').value)||0;var q=document.getElementById('poste-qty');if(q&&r&&w)q.value=Math.round(w*r/100*1000)/1000;}
 function openAddPoste(){state.editPosteIndex=undefined;document.getElementById('modal-poste-title').textContent='Ajouter un poste de coût';document.getElementById('modal-poste-submit').textContent='Ajouter';['poste-name','poste-note','poste-qty-actual','poste-price-actual','poste-pigment-ratio','poste-pigment-resin-kg'].forEach(id=>{var el=document.getElementById(id);if(el)el.value=id==='poste-pigment-ratio'?'2':'';});document.getElementById('poste-qty').value='1';document.getElementById('poste-price').value='';togglePostePigmentFields();openModal('modal-poste');}
-function openEditPoste(i){const p=getCurrentProject();const r=(p.postes||[])[i];if(!r)return;state.editPosteIndex=i;document.getElementById('modal-poste-title').textContent='Modifier le poste';document.getElementById('modal-poste-submit').textContent='Enregistrer';document.getElementById('poste-name').value=r.name||'';document.getElementById('poste-cat').value=r.cat||'misc';document.getElementById('poste-qty').value=r.qty||1;document.getElementById('poste-unit').value=r.unit||'forfait';document.getElementById('poste-price').value=r.price||'';var aq=document.getElementById('poste-qty-actual');var ap=document.getElementById('poste-price-actual');if(aq)aq.value=r.actualQty!=null?r.actualQty:'';if(ap)ap.value=r.actualPrice!=null?r.actualPrice:'';document.getElementById('poste-note').value=r.note||'';var pr=document.getElementById('poste-pigment-ratio');var pk=document.getElementById('poste-pigment-resin-kg');if(pr)pr.value=r.ratioPct!=null?r.ratioPct:2;if(pk)pk.value=r.resinWeight!=null?r.resinWeight:'';togglePostePigmentFields();openModal('modal-poste');}
+function openEditPoste(i){const p=getCurrentProject();const r=(p.postes||[])[i];if(!r)return;state.editPosteIndex=i;document.getElementById('modal-poste-title').textContent='Modifier le poste';document.getElementById('modal-poste-submit').textContent='Enregistrer';document.getElementById('poste-name').value=r.name||'';document.getElementById('poste-cat').value=r.cat||'misc';document.getElementById('poste-qty').value=r.qty||1;document.getElementById('poste-unit').value=r.unit||'forfait';document.getElementById('poste-price').value=r.price||'';var aq=document.getElementById('poste-qty-actual');var ap=document.getElementById('poste-price-actual');ensurePigmentsNormalized();if(aq)aq.value=r.actualQty!=null?r.actualQty:'';if(ap){var catPig=(r.cataloguePigmentId!=null&&state.pigments&&state.pigments[r.cataloguePigmentId])?state.pigments[r.cataloguePigmentId]:null;var cpr=catPig&&typeof catPig==='object'&&catPig.prixAchatReel!=null?catPig.prixAchatReel:null;ap.value=r.actualPrice!=null?r.actualPrice:(cpr!=null?cpr:'');}document.getElementById('poste-note').value=r.note||'';var pr=document.getElementById('poste-pigment-ratio');var pk=document.getElementById('poste-pigment-resin-kg');if(pr)pr.value=r.ratioPct!=null?r.ratioPct:2;if(pk)pk.value=r.resinWeight!=null?r.resinWeight:'';togglePostePigmentFields();if((r.cat||'')==='pigment')fillPostePigmentCatalogueSelect(r.cataloguePigmentId);openModal('modal-poste');}
 async function savePoste(){
   const name=document.getElementById('poste-name').value.trim();if(!name)return alert('Saisissez une désignation.');
   const qty=parseFloat(document.getElementById('poste-qty').value)||1,price=parseFloat(document.getElementById('poste-price').value)||0;
   const cat=document.getElementById('poste-cat').value,unit=document.getElementById('poste-unit').value,note=document.getElementById('poste-note').value.trim();
   var actualQty=document.getElementById('poste-qty-actual').value;actualQty=actualQty===''?undefined:parseFloat(actualQty);
   var actualPrice=document.getElementById('poste-price-actual').value;actualPrice=actualPrice===''?undefined:parseFloat(actualPrice);
-  const p=getCurrentProject();const data={name,cat,qty,unit,price,note,_ts:Date.now()};if(actualQty!=null)data.actualQty=actualQty;if(actualPrice!=null)data.actualPrice=actualPrice;if(cat==='pigment'){var rp=document.getElementById('poste-pigment-ratio');var rw=document.getElementById('poste-pigment-resin-kg');if(rp)data.ratioPct=parseFloat(rp.value)||0;if(rw&&rw.value)data.resinWeight=parseFloat(rw.value);addPigmentToCatalogue(name);}
+  const p=getCurrentProject();const data={name,cat,qty,unit,price,note,_ts:Date.now()};if(actualQty!=null)data.actualQty=actualQty;if(actualPrice!=null)data.actualPrice=actualPrice;
+  var pcat=document.getElementById('poste-pigment-catalogue');
+  if(cat==='pigment'){
+    var rp=document.getElementById('poste-pigment-ratio');var rw=document.getElementById('poste-pigment-resin-kg');
+    if(rp)data.ratioPct=parseFloat(rp.value)||0;if(rw&&rw.value)data.resinWeight=parseFloat(rw.value);
+    if(pcat&&pcat.value!=='')data.cataloguePigmentId=parseInt(pcat.value,10);
+    addPigmentToCatalogue(name);
+  }
   if(state.editPosteIndex!==undefined){p.postes[state.editPosteIndex]=data;state.editPosteIndex=undefined;}else p.postes.push(data);
   await saveState();closeModal('modal-poste');renderDetail();if(typeof renderSynthese==='function')renderSynthese();
 }
@@ -2394,8 +2493,14 @@ const DEFAULT_CGV=`1. Objet — Les présentes CGV s'appliquent à toutes les cr
 
 function getSt(){return Object.assign({company:"Le bois d\'Olivier",name:'Olivier CASTELLETA',addr1:'9 Rue Frédéric Mistral',addr2:'30300 FOURQUES',email:'leboisdoliviercreations@gmail.com',tel:'06-21-07-35-89',siret:'',acompte:50,validite:30,delai:"4 à 6 semaines à compter du règlement d'acompte",cgv:DEFAULT_CGV},state.settings||{});}
 
-function addPigmentToCatalogue(name){if(!name||!name.trim())return;if(!state.pigments)state.pigments=[];if(state.pigments.indexOf(name.trim())===-1){state.pigments.push(name.trim());saveState();}}
-function renderParamsPigments(){var cont=document.getElementById('params-pigments-list');var empty=document.getElementById('params-pigments-empty');if(!cont)return;cont.innerHTML='';var list=state.pigments||[];if(!list.length){if(empty)empty.style.display='block';return;}if(empty)empty.style.display='none';list.forEach((n,i)=>{var span=document.createElement('span');span.className='tag';span.style.background='#e91e6322';span.style.color='#e91e63';span.textContent='🎨 '+n;cont.appendChild(span);});}
+function addPigmentToCatalogue(name){
+  if(!name||!name.trim())return;
+  ensurePigmentsNormalized();
+  var n=name.trim();
+  var exists=state.pigments.some(function(p){return (typeof p==='object'?p.name:p)===n;});
+  if(!exists){state.pigments.push({name:n,brand:'',notes:'',prixAchatReel:null});saveState();}
+}
+function renderParamsPigments(){ /* raccourci : section Catalogue pigments */ }
 function loadSettingsUI(){
   const s=getSt();
   const fields=['company','name','addr1','addr2','email','tel','siret','acompte','validite','delai','cgv'];
@@ -2854,7 +2959,7 @@ function renderClients(){
     const dvs=(state.devis||[]).filter(d=>d.clientId===cl.id);
     const dvAccepted=dvs.filter(d=>d.status==='accepte'||d.status==='facture');
     const devisTotal=dvAccepted.reduce((s,d)=>{const marg=(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0)*(d.marginPct||0)/100;return s+(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0)+marg;},0);
-    const txTotal=(cl.transactions||[]).reduce((s,t)=>s+(t.amount||0),0);
+    const txTotal=(cl.transactions||[]).filter(txIsEncaissementRecu).reduce((s,t)=>s+(t.amount||0),0);
     const totalCA=devisTotal+txTotal;
     const totalCmd=dvAccepted.length+(cl.transactions||[]).length;
     const card=document.createElement('div');card.className='client-card';card.onclick=()=>openClient(cl.id);
@@ -2903,6 +3008,7 @@ function renderClientDetail(){
   online.innerHTML=rows.join('')||'<span style="color:var(--text-dim);font-size:12px;">Aucune plateforme renseignée.</span>';
   document.getElementById('cl-notes-display').textContent=cl.notes||'—';
   renderClientKPIs(cl);
+  renderClientEncaissementsPrevusBox(cl);
   renderClientTransactions(cl);
 
   // Devis liés
@@ -3488,10 +3594,10 @@ function renderDashboard(){
   const acceptedDevis = (state.devis||[]).filter(d=>d.status==='accepte');
   function devisTotal(d){ const sub=(d.lignes||[]).reduce((s,l)=>s+l.qty*l.price,0); return sub*(1+(d.marginPct||0)/100); }
   const caDevisMonth = acceptedDevis.filter(d=>(d.date||'').startsWith(thisMonth)).reduce((s,d)=>s+devisTotal(d),0);
-  const caTxMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>(t.date||'').startsWith(thisMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
+  const caTxMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>txIsEncaissementRecu(t)&&(t.date||'').startsWith(thisMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
   const caMonth = caDevisMonth + caTxMonth;
   const caDevisLastMonth = acceptedDevis.filter(d=>(d.date||'').startsWith(lastMonth)).reduce((s,d)=>s+devisTotal(d),0);
-  const caTxLastMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>(t.date||'').startsWith(lastMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
+  const caTxLastMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>txIsEncaissementRecu(t)&&(t.date||'').startsWith(lastMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
   const caLastMonth = caDevisLastMonth + caTxLastMonth;
   const caEvol = caLastMonth ? Math.round((caMonth-caLastMonth)/caLastMonth*100) : null;
 
@@ -3523,7 +3629,7 @@ function renderDashboard(){
 
   // KPIs
   const caEvolTxt = caEvol!==null?(caEvol>=0?'\u25b2 +':'\u25bc ')+caEvol+'% vs mois dernier':'Premier mois';
-  const caDetailTxt = caTxMonth>0 ? `Devis: ${fmtEur(caDevisMonth)} · Fiches clients: ${fmtEur(caTxMonth)}` : caEvolTxt;
+  const caDetailTxt = caTxMonth>0 ? `Devis: ${fmtEur(caDevisMonth)} · Encaissements reçus: ${fmtEur(caTxMonth)}` : caEvolTxt;
   document.getElementById('dash-kpis').innerHTML = `
     <div class="kpi-card kpi-amber">
       <div class="kpi-val" style="color:var(--amber-light)">${fmtEur(caMonth)}</div>
@@ -3577,8 +3683,9 @@ function renderDashboard(){
   if(!recentProj.length){ prDiv.innerHTML='<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">Aucun projet.</div>'; }
   else prDiv.innerHTML = recentProj.map(p=>{
     const cost=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0)+(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
+    const cname=clientDisplayNameById(p.clientId);
     return `<div class="dash-list-item">
-      <div style="flex:1"><div style="font-size:13px">${esc(p.name)}</div><div style="font-size:10px;color:var(--text-dim);font-family:DM Mono,monospace">${p.shape?SL[p.shape]+' · ':''} ${fmtEur(cost)} coûts</div></div>
+      <div style="flex:1"><div style="font-size:13px">${esc(p.name)}</div><div style="font-size:10px;color:var(--text-dim);font-family:DM Mono,monospace">${cname?esc(cname)+' · ':''}${p.shape?SL[p.shape]+' · ':''}${fmtEur(cost)} coûts</div></div>
       <button class="btn btn-ghost btn-sm" onclick="openProject(${p.id})">›</button></div>`;
   }).join('');
 
@@ -3598,6 +3705,39 @@ function renderDashboard(){
       return `<div class="dash-list-item"><div style="flex:1"><div style="font-size:13px">${esc(d.ref||'')} — ${esc(d.name)}</div><div style="font-size:10px;color:var(--text-dim)">${esc(d.client||'')} · envoyé ${d.date||'—'}</div></div><span style="font-family:DM Mono,monospace;font-size:12px;color:var(--amber-light)">${fmtEur(tot)}</span><button class="btn btn-ghost btn-sm" onclick="openDevis(${d.id})">›</button></div>`;
     }).join('');
   }
+
+  const encDash = document.getElementById('dash-encaissements-prevus');
+  if (encDash) {
+    let gA = 0, gS = 0, gO = 0;
+    const prevRows = [];
+    (state.clients || []).forEach(cl => {
+      const cname = ((cl.firstname || '') + ' ' + (cl.lastname || '')).trim();
+      (cl.transactions || []).filter(t => (t.txStatus || '') === 'prevu').forEach(t => {
+        const f = t.txFlow || 'total', a = t.amount || 0;
+        if (f === 'acompte') gA += a; else if (f === 'solde') gS += a; else gO += a;
+        prevRows.push({ t, clientName: cname, clientId: cl.id, flow: f });
+      });
+    });
+    prevRows.sort((a, b) => (a.t.date || '').localeCompare(b.t.date || ''));
+    const flowLab = { total: 'Total', acompte: 'Acompte', solde: 'Solde' };
+    if (!prevRows.length) {
+      encDash.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">Aucun encaissement prévu. Enregistrez-les depuis la fiche client (encaissements avec statut « Prévu »).</div>';
+    } else {
+      encDash.innerHTML = '<div class="encaissements-prevus-grid" style="margin-bottom:14px;">'
+        + '<div class="enc-prev-cell"><div>Acomptes à venir</div><div class="enc-prev-val" style="color:#ff8dc0">' + fmtEur(gA) + '</div></div>'
+        + '<div class="enc-prev-cell"><div>Soldes à venir</div><div class="enc-prev-val" style="color:var(--resin)">' + fmtEur(gS) + '</div></div>'
+        + '<div class="enc-prev-cell"><div>Paiements totaux prévus</div><div class="enc-prev-val" style="color:var(--amber-light)">' + fmtEur(gO) + '</div></div>'
+        + '<div class="enc-prev-cell"><div>Total à venir</div><div class="enc-prev-val">' + fmtEur(gA + gS + gO) + '</div></div></div>'
+        + '<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">Prochains encaissements (par date)</div>'
+        + prevRows.slice(0, 14).map(r => {
+          const t = r.t;
+          const ds = t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+          const lab = flowLab[r.flow] || r.flow;
+          return '<div class="dash-list-item"><div style="flex:1"><div style="font-size:12px">' + esc(ds) + ' · ' + esc(lab) + ' — ' + esc(r.clientName) + '</div><div style="font-size:10px;color:var(--text-dim)">' + esc(t.desc || '') + '</div></div><span style="font-family:DM Mono,monospace;font-size:12px;color:var(--amber-light)">' + fmtEur(t.amount) + '</span><button class="btn btn-ghost btn-sm" onclick="openClient(' + r.clientId + ')">›</button></div>';
+        }).join('')
+        + (prevRows.length > 14 ? '<div style="font-size:11px;color:var(--text-dim);margin-top:8px;">+' + (prevRows.length - 14) + ' autre(s)… voir les fiches clients.</div>' : '');
+    }
+  }
 }
 
 // ==================== RENTABILITÉ ====================
@@ -3609,7 +3749,7 @@ function renderRenta(){
     prixVenteEl.value = (p.prixVente != null && p.prixVente !== '') ? p.prixVente : '';
   }
   const prixVente = parseFloat(prixVenteEl.value)||0;
-  const coutMat = (p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0)+(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
+  const coutMat = getProjectActualCost(p);
   const mins = (p.times||[]).reduce((s,t)=>s+t.mins,0);
   const marge = prixVente - coutMat;
   const margePct = prixVente ? Math.round(marge/prixVente*100) : null;
@@ -3618,7 +3758,7 @@ function renderRenta(){
   const colorTx = txHoraire===null?'renta-amber':txHoraire>=15?'renta-green':txHoraire>=8?'renta-amber':'renta-red';
 
   document.getElementById('renta-cards').innerHTML = `
-    <div class="renta-card"><div class="renta-val renta-amber">${fmtEur(coutMat)}</div><div class="renta-label">Coût total matières</div></div>
+    <div class="renta-card"><div class="renta-val renta-amber">${fmtEur(coutMat)}</div><div class="renta-label">Coût matières (réel si renseigné)</div></div>
     <div class="renta-card"><div class="renta-val ${colorMarge}">${prixVente?fmtEur(marge):'—'}</div><div class="renta-label">Marge brute${margePct!==null?' ('+margePct+'%)':''}</div></div>
     <div class="renta-card"><div class="renta-val ${colorTx}">${txHoraire!==null?fmtEur(txHoraire)+'/h':'—'}</div><div class="renta-label">Taux horaire effectif</div></div>`;
 
@@ -3626,8 +3766,8 @@ function renderRenta(){
   if(prixVente){
     detail.innerHTML = `<div style="background:var(--surface2);border-radius:9px;padding:14px;font-size:13px;line-height:1.9;">
       <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:7px;margin-bottom:7px;"><span style="color:var(--text-dim)">Prix de vente</span><span style="font-family:DM Mono,monospace">${fmtEur(prixVente)}</span></div>
-      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim)">Coût matières</span><span style="font-family:DM Mono,monospace;color:var(--red)">- ${fmtEur(coutMat)}</span></div>
-      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:7px;font-weight:500;"><span>Marge brute</span><span style="font-family:DM Mono,monospace;color:${marge>=0?'var(--green)':'var(--red)'}">${fmtEur(marge)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim)">Coût matières (achats réels / estimés)</span><span style="font-family:DM Mono,monospace;color:var(--red)">- ${fmtEur(coutMat)}</span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:7px;font-weight:500;"><span>Marge brute (sur ce coût)</span><span style="font-family:DM Mono,monospace;color:${marge>=0?'var(--green)':'var(--red)'}">${fmtEur(marge)}</span></div>
       ${mins?'<div style="display:flex;justify-content:space-between;margin-top:4px;"><span style="color:var(--text-dim)">Temps passé</span><span style="font-family:DM Mono,monospace">'+fmtTime(mins)+'</span></div>':''}
       ${txHoraire!==null?'<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-dim)">Taux horaire</span><span style="font-family:DM Mono,monospace;color:'+(colorTx==='renta-green'?'var(--green)':colorTx==='renta-red'?'var(--red)':'var(--amber-light)')+'">'+fmtEur(txHoraire)+'/h</span></div>':''}
     </div>`;
@@ -3940,9 +4080,9 @@ function renderStats(){
   const projAvecPrix=state.projects.filter(p=>p.prixVente>0);
   if(!projAvecPrix.length){document.getElementById('stats-margins').innerHTML='<div style="color:var(--text-dim);font-size:12px;">Renseignez les prix de vente dans la section Rentabilité de chaque projet.</div>';}
   else{
-    const maxM=Math.max(...projAvecPrix.map(p=>{const c=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0)+(p.resins||[]).reduce((s,r)=>s+rcv(r),0);return p.prixVente-c;}),1);
+    const maxM=Math.max(...projAvecPrix.map(p=>{const c=getProjectActualCost(p);return p.prixVente-c;}),1);
     document.getElementById('stats-margins').innerHTML=projAvecPrix.map(p=>{
-      const c=(p.postes||[]).reduce((s,r)=>s+r.qty*r.price,0)+(p.resins||[]).reduce((s,r)=>s+rcv(r),0);
+      const c=getProjectActualCost(p);
       const m=p.prixVente-c,pct=p.prixVente?Math.round(m/p.prixVente*100):0;
       return `<div class="stats-bar-item"><div class="stats-bar-label" style="width:90px;font-size:9px">${esc(p.name.substring(0,12))}</div>
         <div class="stats-bar-track"><div class="stats-bar-fill" style="width:${Math.max(0,Math.round(m/maxM*100))}%;background:${m>=0?'var(--green)':'var(--red)'}"></div></div>
@@ -4100,6 +4240,72 @@ function renderCatalogueResines(){
     grid.appendChild(card);
   });
 }
+
+function renderCataloguePigments(){
+  ensurePigmentsNormalized();
+  var grid=document.getElementById('catalogue-pigments-grid');
+  var empty=document.getElementById('catalogue-pigments-empty');
+  if(!grid)return;
+  grid.innerHTML='';
+  if(!state.pigments||!state.pigments.length){if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  state.pigments.forEach(function(pg,i){
+    if(typeof pg==='string')return;
+    var card=document.createElement('div');card.className='pigment-card';
+    var prixLine=(pg.prixAchatReel!=null&&pg.prixAchatReel!=='')?('<div class="pigment-prix">Prix d\'achat réel : '+fmtEur(pg.prixAchatReel)+' / unité</div>'):('<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Prix d\'achat réel non renseigné</div>');
+    card.innerHTML='<div class="pigment-name">'+esc(pg.name)+'</div>'
+      +'<div class="pigment-brand">'+(pg.brand?esc(pg.brand):'—')+'</div>'
+      +prixLine
+      +(pg.notes?'<div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;font-style:italic;">'+esc(pg.notes)+'</div>':'')
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +'<button type="button" class="pigment-select-btn" onclick="openEditPigmentCatalog('+i+')">✏️ Modifier</button>'
+      +'<button type="button" class="btn btn-danger btn-sm" onclick="deletePigmentCatalog('+i+')">🗑</button></div>';
+    grid.appendChild(card);
+  });
+}
+
+function openNewPigmentCatalog(){
+  state.editPigmentCatalogIdx=-1;
+  document.getElementById('modal-pigment-catalog-title').textContent='Nouveau pigment';
+  document.getElementById('pig-cat-name').value='';
+  document.getElementById('pig-cat-brand').value='';
+  document.getElementById('pig-cat-prix-achat').value='';
+  document.getElementById('pig-cat-notes').value='';
+  openModal('modal-catalogue-pigment');
+}
+function openEditPigmentCatalog(i){
+  ensurePigmentsNormalized();
+  var pg=state.pigments[i];if(!pg||typeof pg==='string')return;
+  state.editPigmentCatalogIdx=i;
+  document.getElementById('modal-pigment-catalog-title').textContent='Modifier le pigment';
+  document.getElementById('pig-cat-name').value=pg.name||'';
+  document.getElementById('pig-cat-brand').value=pg.brand||'';
+  document.getElementById('pig-cat-prix-achat').value=pg.prixAchatReel!=null?pg.prixAchatReel:'';
+  document.getElementById('pig-cat-notes').value=pg.notes||'';
+  openModal('modal-catalogue-pigment');
+}
+async function savePigmentCatalog(){
+  ensurePigmentsNormalized();
+  var name=document.getElementById('pig-cat-name').value.trim();
+  if(!name)return alert('Saisissez un nom.');
+  var entry={name:name,brand:document.getElementById('pig-cat-brand').value.trim(),notes:document.getElementById('pig-cat-notes').value.trim()};
+  var pa=document.getElementById('pig-cat-prix-achat').value;
+  entry.prixAchatReel=(pa===''||pa==null)?null:parseFloat(pa);
+  if(state.editPigmentCatalogIdx>=0)state.pigments[state.editPigmentCatalogIdx]=entry;
+  else state.pigments.push(entry);
+  state.editPigmentCatalogIdx=undefined;
+  await saveState();
+  closeModal('modal-catalogue-pigment');
+  if(typeof renderCataloguePigments==='function')renderCataloguePigments();
+}
+async function deletePigmentCatalog(i){
+  if(!confirm('Supprimer ce pigment du catalogue ?'))return;
+  ensurePigmentsNormalized();
+  state.pigments.splice(i,1);
+  await saveState();
+  renderCataloguePigments();
+}
+
 function renderResines() {
   if (!state.resines) state.resines = [];
   const grid = document.getElementById('resines-grid');
@@ -4136,11 +4342,15 @@ function renderResines() {
 }
 
 function switchParamsTab(tab) {
-  document.getElementById('params-pane-entreprise').style.display = tab === 'entreprise' ? '' : 'none';
-  document.getElementById('params-pane-resines').style.display = tab === 'resines' ? '' : 'none';
-  document.getElementById('params-tab-entreprise').style.borderColor = tab === 'entreprise' ? 'var(--amber)' : '';
-  document.getElementById('params-tab-resines').style.borderColor = tab === 'resines' ? 'var(--resin)' : '';
-  if (tab === 'resines') renderResines();
+  var pe = document.getElementById('params-pane-entreprise');
+  var pr = document.getElementById('params-pane-resines');
+  if (pe) pe.style.display = tab === 'entreprise' ? '' : 'none';
+  if (pr) pr.style.display = tab === 'resines' ? '' : 'none';
+  var te = document.getElementById('params-tab-entreprise');
+  var tr = document.getElementById('params-tab-resines');
+  if (te) te.style.borderColor = tab === 'entreprise' ? 'var(--amber)' : '';
+  if (tr) tr.style.borderColor = tab === 'resines' ? 'var(--resin)' : '';
+  if (tab === 'resines' && typeof renderResines === 'function') renderResines();
 }
 
 function openNewResine() {
@@ -4487,16 +4697,35 @@ const PAYMENT_LABELS = {
   virement:'Virement', especes:'Espèces', cb:'Carte bancaire',
   cheque:'Chèque', paypal:'PayPal', autre:'Autre'
 };
+const TX_FLOW_LABELS = { total:'Total', acompte:'Acompte', solde:'Solde' };
+
+function txIsEncaissementRecu(t) {
+  return (t.txStatus || 'recu') !== 'prevu';
+}
+
+function toggleTxEncaissementFields() {
+  var st = document.getElementById('tx-status');
+  var lbl = document.getElementById('tx-date-label');
+  if (!st || !lbl) return;
+  if (st.value === 'prevu') {
+    lbl.textContent = 'Date prévue d\'encaissement';
+  } else {
+    lbl.textContent = 'Date d\'encaissement';
+  }
+}
 
 function openNewTransaction() {
   state.editTxIdx = -1;
-  document.getElementById('modal-transaction-title').textContent = 'Ajouter un achat';
+  document.getElementById('modal-transaction-title').textContent = 'Ajouter un encaissement';
   document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('tx-amount').value = '';
   document.getElementById('tx-desc').value = '';
   document.getElementById('tx-platform').value = 'direct';
   document.getElementById('tx-payment').value = 'virement';
   document.getElementById('tx-notes').value = '';
+  document.getElementById('tx-status').value = 'recu';
+  document.getElementById('tx-flow').value = 'total';
+  toggleTxEncaissementFields();
   openModal('modal-transaction');
 }
 
@@ -4504,13 +4733,16 @@ function openEditTransaction(idx) {
   const cl = getCurrentClient(); if (!cl) return;
   const tx = (cl.transactions || [])[idx]; if (!tx) return;
   state.editTxIdx = idx;
-  document.getElementById('modal-transaction-title').textContent = 'Modifier l\'achat';
+  document.getElementById('modal-transaction-title').textContent = 'Modifier l\'encaissement';
   document.getElementById('tx-date').value = tx.date || '';
   document.getElementById('tx-amount').value = tx.amount || '';
   document.getElementById('tx-desc').value = tx.desc || '';
   document.getElementById('tx-platform').value = tx.platform || 'direct';
   document.getElementById('tx-payment').value = tx.payment || 'virement';
   document.getElementById('tx-notes').value = tx.notes || '';
+  document.getElementById('tx-status').value = tx.txStatus || 'recu';
+  document.getElementById('tx-flow').value = tx.txFlow || 'total';
+  toggleTxEncaissementFields();
   openModal('modal-transaction');
 }
 
@@ -4518,18 +4750,21 @@ async function saveTransaction() {
   const cl = getCurrentClient(); if (!cl) return;
   const amount = parseFloat(document.getElementById('tx-amount').value);
   if (!amount || amount <= 0) return alert('Saisissez un montant valide.');
+  const d = document.getElementById('tx-date').value;
+  if (!d) return alert('Saisissez une date.');
   if (!cl.transactions) cl.transactions = [];
   const entry = {
-    date: document.getElementById('tx-date').value,
+    date: d,
     amount,
     desc: document.getElementById('tx-desc').value.trim(),
     platform: document.getElementById('tx-platform').value,
     payment: document.getElementById('tx-payment').value,
-    notes: document.getElementById('tx-notes').value.trim()
+    notes: document.getElementById('tx-notes').value.trim(),
+    txStatus: document.getElementById('tx-status').value || 'recu',
+    txFlow: document.getElementById('tx-flow').value || 'total'
   };
   if (state.editTxIdx >= 0) cl.transactions[state.editTxIdx] = entry;
   else cl.transactions.push(entry);
-  // Sort by date desc
   cl.transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   await saveState();
   closeModal('modal-transaction');
@@ -4538,7 +4773,7 @@ async function saveTransaction() {
 
 async function deleteTransaction(idx) {
   const cl = getCurrentClient(); if (!cl) return;
-  if (!confirm('Supprimer cet achat ?')) return;
+  if (!confirm('Supprimer cet encaissement ?')) return;
   cl.transactions.splice(idx, 1);
   await saveState();
   renderClientDetail();
@@ -4555,11 +4790,17 @@ function renderClientTransactions(cl) {
     const platClass = 'platform-' + (tx.platform || 'autre');
     const platLabel = PLATFORM_LABELS[tx.platform] || tx.platform || '—';
     const dateStr = tx.date ? new Date(tx.date).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'}) : '—';
-    return '<div class="transaction-item">'
+    const prevu = !txIsEncaissementRecu(tx);
+    const flow = tx.txFlow || 'total';
+    const flowLab = TX_FLOW_LABELS[flow] || flow;
+    const flowCls = flow === 'acompte' ? 'tx-flow-acompte' : flow === 'solde' ? 'tx-flow-solde' : 'tx-flow-total';
+    const statusBadge = prevu ? '<span class="tx-badge-prevu">À venir</span>' : '<span class="tx-badge-flow" style="background:rgba(39,174,96,.2);color:var(--green);">Reçu</span>';
+    const flowBadge = '<span class="tx-badge-flow ' + flowCls + '">' + esc(flowLab) + '</span>';
+    return '<div class="transaction-item' + (prevu ? ' transaction-prevu' : '') + '">'
       + '<span class="transaction-date">' + dateStr + '</span>'
-      + '<span class="transaction-desc">' + esc(tx.desc || '—') + (tx.notes ? ' <span style="color:var(--text-dim);font-size:11px;">(' + esc(tx.notes) + ')</span>' : '') + '</span>'
+      + '<span class="transaction-desc">' + statusBadge + flowBadge + esc(tx.desc || '—') + (tx.notes ? ' <span style="color:var(--text-dim);font-size:11px;">(' + esc(tx.notes) + ')</span>' : '') + '</span>'
       + '<span class="transaction-platform ' + platClass + '">' + platLabel + '</span>'
-      + '<span class="transaction-amount">+' + fmtEur(tx.amount) + '</span>'
+      + '<span class="transaction-amount">' + (prevu ? '' : '+') + fmtEur(tx.amount) + (prevu ? ' <span style="font-size:10px;color:var(--text-dim)">prévu</span>' : '') + '</span>'
       + '<div class="transaction-actions">'
       + '<button class="btn btn-ghost btn-sm" onclick="openEditTransaction(' + i + ')" title="Modifier">✏️</button>'
       + '<button class="btn btn-danger btn-sm" onclick="deleteTransaction(' + i + ')" title="Supprimer">🗑</button>'
@@ -4568,14 +4809,43 @@ function renderClientTransactions(cl) {
   }).join('');
 }
 
+function renderClientEncaissementsPrevusBox(cl) {
+  const el = document.getElementById('cl-encaissements-prevus');
+  if (!el) return;
+  const prevus = (cl.transactions || []).filter(t => (t.txStatus || '') === 'prevu');
+  if (!prevus.length) { el.innerHTML = ''; return; }
+  let sumA = 0, sumS = 0, sumO = 0;
+  prevus.forEach(t => {
+    const a = t.amount || 0;
+    const f = t.txFlow || 'total';
+    if (f === 'acompte') sumA += a;
+    else if (f === 'solde') sumS += a;
+    else sumO += a;
+  });
+  const lines = prevus.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const listHtml = lines.map(t => {
+    const f = t.txFlow || 'total';
+    const lab = TX_FLOW_LABELS[f] || f;
+    const ds = t.date ? new Date(t.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    return '<div class="dash-list-item" style="margin-bottom:6px;"><div style="flex:1"><div style="font-size:12px">' + esc(ds) + ' · <strong>' + esc(lab) + '</strong> · ' + esc(t.desc || '—') + '</div></div><span style="font-family:DM Mono,monospace;font-size:13px;color:var(--amber-light)">' + fmtEur(t.amount) + '</span></div>';
+  }).join('');
+  el.innerHTML = '<div class="encaissements-prevus-box"><div class="section-title" style="margin-bottom:8px;">Trésorerie à venir (ce client)</div><div class="encaissements-prevus-grid">'
+    + '<div class="enc-prev-cell"><div>Acomptes à venir</div><div class="enc-prev-val" style="color:#ff8dc0">' + fmtEur(sumA) + '</div></div>'
+    + '<div class="enc-prev-cell"><div>Soldes à venir</div><div class="enc-prev-val" style="color:var(--resin)">' + fmtEur(sumS) + '</div></div>'
+    + '<div class="enc-prev-cell"><div>Prévus (paiement total)</div><div class="enc-prev-val" style="color:var(--amber-light)">' + fmtEur(sumO) + '</div></div>'
+    + '<div class="enc-prev-cell"><div>Total prévu</div><div class="enc-prev-val">' + fmtEur(sumA + sumS + sumO) + '</div></div></div>'
+    + '<div style="margin-top:14px;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;">Détail par date</div><div style="margin-top:8px;">' + listHtml + '</div></div>';
+}
+
 function renderClientKPIs(cl) {
   const kpisEl = document.getElementById('cl-kpis');
   if (!kpisEl) return;
 
   // From transactions
   const txs = cl.transactions || [];
-  const txTotal = txs.reduce((s, t) => s + (t.amount || 0), 0);
-  const txCount = txs.length;
+  const txRecus = txs.filter(txIsEncaissementRecu);
+  const txTotal = txRecus.reduce((s, t) => s + (t.amount || 0), 0);
+  const txCount = txRecus.length;
 
   // From accepted devis
   const devisClient = (state.devis || []).filter(d => d.clientId === cl.id || d.client === ((cl.firstname||'') + ' ' + (cl.lastname||'')).trim());
@@ -4592,16 +4862,16 @@ function renderClientKPIs(cl) {
 
   // Last purchase date
   const allDates = [
-    ...txs.map(t => t.date),
+    ...txRecus.map(t => t.date),
     ...devisAccepted.map(d => d.date)
   ].filter(Boolean).sort().reverse();
   const lastDate = allDates[0] ? new Date(allDates[0]).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'}) : '—';
 
   kpisEl.innerHTML = [
-    { val: fmtEur(totalCA), label: 'CA total client' },
-    { val: totalCommandes, label: 'Commandes' },
+    { val: fmtEur(totalCA), label: 'CA réalisé (devis + enc. reçus)' },
+    { val: totalCommandes, label: 'Commandes / enc. reçus' },
     { val: fmtEur(panier), label: 'Panier moyen' },
-    { val: lastDate, label: 'Dernier achat' }
+    { val: lastDate, label: 'Dernière date (devis / enc.)' }
   ].map(k => '<div class="client-kpi"><div class="client-kpi-val">' + k.val + '</div><div class="client-kpi-label">' + k.label + '</div></div>').join('');
 }
 
@@ -4671,7 +4941,7 @@ function exportClientsExcel() {
 
   clients.forEach(cl => {
     const txs = cl.transactions || [];
-    const txTotal = txs.reduce((s,t) => s+(t.amount||0), 0);
+    const txTotal = txs.filter(txIsEncaissementRecu).reduce((s,t) => s+(t.amount||0), 0);
     const fullName = ((cl.firstname||'')+' '+(cl.lastname||'')).trim();
     const devisAcc = (state.devis||[]).filter(d => (d.clientId===cl.id||d.client===fullName) && (d.status==='accepte'||d.status==='facture'));
     const devisTotal = devisAcc.reduce((s,d) => { const b=(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0); return s+b*(1+(d.marginPct||0)/100); }, 0);
@@ -4696,17 +4966,20 @@ function exportClientsExcel() {
   rows.push('');
   rows.push('=== TRANSACTIONS ===');
   rows.push([
-    'CLIENT_ID','Prénom','Nom','Date','Montant (€)','Description','Plateforme','Paiement','Notes'
+    'CLIENT_ID','Prénom','Nom','Date','Montant (€)','Description','Plateforme','Paiement','Notes','Statut encaissement','Nature (acompte/solde/total)'
   ].join(SEP));
 
   clients.forEach(cl => {
     (cl.transactions||[]).forEach(tx => {
       const q = v => '"'+String(v||'').replace(/"/g,'""')+'"';
+      const st = (tx.txStatus||'recu')==='prevu'?'prevu':'recu';
+      const fl = tx.txFlow || 'total';
       rows.push([
         cl.id, q(cl.firstname||''), q(cl.lastname||''),
         q(tx.date||''),
         (tx.amount||0).toFixed(2).replace('.',','),
-        q(tx.desc||''), q(tx.platform||'direct'), q(tx.payment||''), q(tx.notes||'')
+        q(tx.desc||''), q(tx.platform||'direct'), q(tx.payment||''), q(tx.notes||''),
+        q(st), q(fl)
       ].join(SEP));
     });
   });
@@ -4759,14 +5032,17 @@ function importClientsCSV(file) {
           const clientId = parseInt(cols[0]);
           const cl = clientsMap[clientId];
           if (cl) {
-            cl.transactions.push({
+            var txRow = {
               date: cols[3]||'',
               amount: parseFloat((cols[4]||'0').replace(',','.'))||0,
               desc: cols[5]||'',
               platform: cols[6]||'direct',
               payment: cols[7]||'',
               notes: cols[8]||''
-            });
+            };
+            if (cols[9]) txRow.txStatus = (String(cols[9]).toLowerCase()==='prevu')?'prevu':'recu';
+            if (cols[10]) txRow.txFlow = ['acompte','solde','total'].indexOf(String(cols[10]).toLowerCase())>=0 ? String(cols[10]).toLowerCase() : 'total';
+            cl.transactions.push(txRow);
           }
         }
       }
@@ -4930,7 +5206,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   updateOfflineBanner();
   dbg('Données chargées — projets:' + (state.projects||[]).length + ' clients:' + (state.clients||[]).length, true);
   if(!state.devis)state.devis=[];if(!state.settings)state.settings={};if(!state.clients)state.clients=[];
-  if(!state.stocks)state.stocks=[];if(!state.planning)state.planning=[];if(!state.resines)state.resines=[];if(!state.simulations)state.simulations=[];if(!state.pigments)state.pigments=[];if(!state.pdfPresets)state.pdfPresets=[];
+  if(!state.stocks)state.stocks=[];if(!state.planning)state.planning=[];if(!state.resines)state.resines=[];if(!state.simulations)state.simulations=[];  if(!state.pigments)state.pigments=[];if(!state.pdfPresets)state.pdfPresets=[];
+  if(ensurePigmentsNormalized())await saveState();
   state.projects.forEach(p=>{if(!p.resins)p.resins=[];if(!p.times)p.times=[];if(!p.postes)p.postes=[];});
   _tryRestoreSession();
   renderDashboard();
@@ -5166,6 +5443,26 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   </div>
 </div>
 
+<!-- CATALOGUE PIGMENT (fiche) -->
+<div class="modal-overlay" id="modal-catalogue-pigment">
+  <div class="modal" style="max-width:520px;">
+    <h2 id="modal-pigment-catalog-title">Nouveau pigment</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Nom</label><input type="text" id="pig-cat-name" placeholder="Pigment alimentaire bleu…"></div>
+      <div class="form-group"><label>Marque / réf.</label><input type="text" id="pig-cat-brand" placeholder="Decor colors…"></div>
+    </div>
+    <div class="form-group">
+      <label>Prix d'achat réel (€ / kg ou par unité saisie dans le projet)</label>
+      <input type="number" id="pig-cat-prix-achat" step="0.01" min="0" placeholder="—">
+    </div>
+    <div class="form-group"><label>Notes</label><textarea id="pig-cat-notes" rows="2" placeholder="Fournisseur, couleur…"></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-catalogue-pigment')">Annuler</button>
+      <button class="btn btn-primary" onclick="savePigmentCatalog()" style="background:rgba(233,30,99,.25);border-color:rgba(233,30,99,.4);color:#ffb3d9;">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <!-- RESINE SELECTOR (inline dropdown for calculatrice) -->
 <div class="modal-overlay" id="modal-resine-select">
   <div class="modal" style="max-width:500px;">
@@ -5219,6 +5516,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   <div class="mob-more-item" data-section="catalogue-resine" onclick="showSection('catalogue-resine');closeMobMore()">
     <span>🧪</span><span>Catalogue résine</span>
   </div>
+  <div class="mob-more-item" data-section="catalogue-pigment" onclick="showSection('catalogue-pigment');closeMobMore()">
+    <span>🎨</span><span>Catalogue pigments</span>
+  </div>
   <div class="mob-more-item" data-section="scanner" onclick="showSection('scanner');closeMobMore()">
     <span>📷</span><span>Factures</span>
   </div>
@@ -5234,10 +5534,27 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 <!-- TRANSACTION MODAL -->
 <div class="modal-overlay" id="modal-transaction">
   <div class="modal" style="max-width:480px;">
-    <h2 id="modal-transaction-title">Ajouter un achat</h2>
+    <h2 id="modal-transaction-title">Ajouter un encaissement</h2>
     <div class="form-row">
       <div class="form-group">
-        <label>Date de l'achat</label>
+        <label>Statut</label>
+        <select id="tx-status" onchange="toggleTxEncaissementFields()">
+          <option value="recu">Reçu (déjà encaissé)</option>
+          <option value="prevu">Prévu (à venir)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Nature du flux</label>
+        <select id="tx-flow" title="Sépare acomptes et soldes dans les totaux">
+          <option value="total">Paiement unique / total</option>
+          <option value="acompte">Acompte</option>
+          <option value="solde">Solde à recevoir</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label id="tx-date-label">Date d'encaissement</label>
         <input type="date" id="tx-date">
       </div>
       <div class="form-group">
