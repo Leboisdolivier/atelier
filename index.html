@@ -3631,11 +3631,20 @@ function renderDashboard(){
   // KPIs
   const caEvolTxt = caEvol!==null?(caEvol>=0?'\u25b2 +':'\u25bc ')+caEvol+'% vs mois dernier':'Premier mois';
   const caDetailTxt = caTxMonth>0 ? `Devis: ${fmtEur(caDevisMonth)} · Enc. reçus (hors devis): ${fmtEur(caTxMonth)}` : caEvolTxt;
+  const totalEncaissementsPrevus = (state.clients||[]).reduce((s,cl)=>
+    s+(cl.transactions||[]).filter(t=>(t.txStatus||'')==='prevu').reduce((sum,t)=>sum+(t.amount||0),0),0);
+  const caPrevuSub = totalEncaissementsPrevus>0
+    ? `<div class="kpi-sub" style="margin-top:7px;line-height:1.4;border-top:1px solid rgba(255,255,255,.06);padding-top:7px;">
+        <span style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);margin-bottom:3px;">Encaissements à venir (tous clients)</span>
+        <span style="font-family:DM Mono,monospace;color:var(--resin);font-size:13px;">${fmtEur(totalEncaissementsPrevus)}</span>
+      </div>`
+    : '';
   document.getElementById('dash-kpis').innerHTML = `
     <div class="kpi-card kpi-amber">
       <div class="kpi-val" style="color:var(--amber-light)">${fmtEur(caMonth)}</div>
       <div class="kpi-label">CA ce mois</div>
       <div class="kpi-sub">${caDetailTxt}</div>
+      ${caPrevuSub}
     </div>
     <div class="kpi-card kpi-purple">
       <div class="kpi-val" style="color:var(--purple)">${devisPending.length}</div>
