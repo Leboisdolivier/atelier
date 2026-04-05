@@ -2959,9 +2959,9 @@ function renderClients(){
     const dvs=(state.devis||[]).filter(d=>d.clientId===cl.id);
     const dvAccepted=dvs.filter(d=>d.status==='accepte'||d.status==='facture');
     const devisTotal=dvAccepted.reduce((s,d)=>{const marg=(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0)*(d.marginPct||0)/100;return s+(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0)+marg;},0);
-    const txTotal=(cl.transactions||[]).filter(txIsEncaissementRecu).reduce((s,t)=>s+(t.amount||0),0);
+    const txTotal=(cl.transactions||[]).filter(txEncaissementOrphelinPourCA).reduce((s,t)=>s+(t.amount||0),0);
     const totalCA=devisTotal+txTotal;
-    const totalCmd=dvAccepted.length+(cl.transactions||[]).length;
+    const totalCmd=dvAccepted.length+(cl.transactions||[]).filter(txEncaissementOrphelinPourCA).length;
     const card=document.createElement('div');card.className='client-card';card.onclick=()=>openClient(cl.id);
     const platforms=[];
     if(cl.insta)platforms.push(`<span class="client-badge badge-insta">${cl.instaFollow==='oui'?'✓ ':''} ${esc(cl.insta)}</span>`);
@@ -3594,10 +3594,10 @@ function renderDashboard(){
   const acceptedDevis = (state.devis||[]).filter(d=>d.status==='accepte'||d.status==='facture');
   function devisTotal(d){ const sub=(d.lignes||[]).reduce((s,l)=>s+l.qty*l.price,0); return sub*(1+(d.marginPct||0)/100); }
   const caDevisMonth = acceptedDevis.filter(d=>(d.date||'').startsWith(thisMonth)).reduce((s,d)=>s+devisTotal(d),0);
-  const caTxMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>txIsEncaissementRecu(t)&&(t.date||'').startsWith(thisMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
+  const caTxMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>txEncaissementOrphelinPourCA(t)&&(t.date||'').startsWith(thisMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
   const caMonth = caDevisMonth + caTxMonth;
   const caDevisLastMonth = acceptedDevis.filter(d=>(d.date||'').startsWith(lastMonth)).reduce((s,d)=>s+devisTotal(d),0);
-  const caTxLastMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>txIsEncaissementRecu(t)&&(t.date||'').startsWith(lastMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
+  const caTxLastMonth = (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>txEncaissementOrphelinPourCA(t)&&(t.date||'').startsWith(lastMonth)).reduce((sum,t)=>sum+(t.amount||0),0),0);
   const caLastMonth = caDevisLastMonth + caTxLastMonth;
   const caEvol = caLastMonth ? Math.round((caMonth-caLastMonth)/caLastMonth*100) : null;
 
@@ -3608,7 +3608,7 @@ function renderDashboard(){
   const cutoffRelance = new Date(now.getTime() - relanceDays*86400000).toISOString().split('T')[0];
   const devisARelancer = devisPending.filter(d=>(d.date||'')<=cutoffRelance);
   const nbDevisCeMois = acceptedDevis.filter(d=>(d.date||'').startsWith(thisMonth)).length;
-  const nbTxCeMois = (state.clients||[]).reduce((n,cl)=>n+(cl.transactions||[]).filter(t=>txIsEncaissementRecu(t)&&(t.date||'').startsWith(thisMonth)).length,0);
+  const nbTxCeMois = (state.clients||[]).reduce((n,cl)=>n+(cl.transactions||[]).filter(t=>txEncaissementOrphelinPourCA(t)&&(t.date||'').startsWith(thisMonth)).length,0);
   const nbOpsCeMois = nbDevisCeMois + nbTxCeMois;
   const panierMoyen = nbOpsCeMois ? caMonth / nbOpsCeMois : 0;
 
@@ -3630,7 +3630,7 @@ function renderDashboard(){
 
   // KPIs
   const caEvolTxt = caEvol!==null?(caEvol>=0?'\u25b2 +':'\u25bc ')+caEvol+'% vs mois dernier':'Premier mois';
-  const caDetailTxt = caTxMonth>0 ? `Devis: ${fmtEur(caDevisMonth)} · Encaissements reçus: ${fmtEur(caTxMonth)}` : caEvolTxt;
+  const caDetailTxt = caTxMonth>0 ? `Devis: ${fmtEur(caDevisMonth)} · Enc. reçus (hors devis): ${fmtEur(caTxMonth)}` : caEvolTxt;
   document.getElementById('dash-kpis').innerHTML = `
     <div class="kpi-card kpi-amber">
       <div class="kpi-val" style="color:var(--amber-light)">${fmtEur(caMonth)}</div>
@@ -4019,13 +4019,13 @@ async function savePlanningEntry(){
 
 // ==================== STATISTIQUES ====================
 function sumEncaissementsClientsRecusForMonth(monthKey){
-  return (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>txIsEncaissementRecu(t)&&(t.date||'').startsWith(monthKey)).reduce((sum,t)=>sum+(t.amount||0),0),0);
+  return (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(t=>txEncaissementOrphelinPourCA(t)&&(t.date||'').startsWith(monthKey)).reduce((sum,t)=>sum+(t.amount||0),0),0);
 }
 function sumAllEncaissementsClientsRecus(){
-  return (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(txIsEncaissementRecu).reduce((sum,t)=>sum+(t.amount||0),0),0);
+  return (state.clients||[]).reduce((s,cl)=>s+(cl.transactions||[]).filter(txEncaissementOrphelinPourCA).reduce((sum,t)=>sum+(t.amount||0),0),0);
 }
 function countEncaissementsClientsRecus(){
-  return (state.clients||[]).reduce((n,cl)=>n+(cl.transactions||[]).filter(txIsEncaissementRecu).length,0);
+  return (state.clients||[]).reduce((n,cl)=>n+(cl.transactions||[]).filter(txEncaissementOrphelinPourCA).length,0);
 }
 
 function renderStats(){
@@ -4055,7 +4055,7 @@ function renderStats(){
   const total12Devis=caByMonth.reduce((s,m)=>s+m.caDevis,0);
   const total12Tx=caByMonth.reduce((s,m)=>s+m.caTx,0);
   document.getElementById('stats-ca-chart').innerHTML=`
-    <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;">Le CA inclut les devis acceptés/facturés <strong>et</strong> les ventes déclarées sur les fiches clients (encaissements « Reçu »), sans passer par les projets.</p>
+    <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;">Le CA inclut les devis acceptés/facturés <strong>et</strong> les encaissements « Reçu » sur fiches clients <strong>sans rattachement à un devis</strong> (les paiements liés à un devis ne sont pas comptés en double).</p>
     <div style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-bottom:6px;">
       ${caByMonth.map(m=>'<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><div title="Total '+fmtEur(m.ca)+' (devis '+fmtEur(m.caDevis)+' + déclaratif '+fmtEur(m.caTx)+')" style="width:100%;height:'+Math.max(Math.round(m.ca/maxCA*100),m.ca>0?2:0)+'px;background:'+(m.ca>0?'var(--amber)':'var(--border)')+';border-radius:3px 3px 0 0;transition:height .4s;cursor:default;"></div><div style="font-size:9px;color:var(--text-dim);font-family:DM Mono,monospace;writing-mode:vertical-lr;transform:rotate(180deg);height:28px">'+m.label+'</div></div>').join('')}
     </div>
@@ -4067,7 +4067,7 @@ function renderStats(){
   const withOrigin=state.projects.filter(p=>p.contactOrigin);
   if(withOrigin.length>0){withOrigin.forEach(p=>{const label=originLabels[p.contactOrigin]||p.contactOrigin;origins[label]=(origins[label]||0)+1;});}
   else if(accepted.length){accepted.forEach(d=>{const cl=(state.clients||[]).find(c=>(c.firstname+' '+c.lastname).trim()===d.client?.split('\n')[0]?.trim());let origin='Direct';if(cl){if(cl.vinted)origin='Vinted';else if(cl.etsy)origin='Etsy';else if(cl.lbc)origin='Le Bon Coin';else if(cl.insta)origin='Instagram';}origins[origin]=(origins[origin]||0)+1;});}
-  else{(state.clients||[]).forEach(cl=>{if(!(cl.transactions||[]).some(txIsEncaissementRecu))return;let origin='Direct';if(cl.vinted)origin='Vinted';else if(cl.etsy)origin='Etsy';else if(cl.lbc)origin='Le Bon Coin';else if(cl.insta)origin='Instagram';origins[origin]=(origins[origin]||0)+1;});}
+  else{(state.clients||[]).forEach(cl=>{if(!(cl.transactions||[]).some(txEncaissementOrphelinPourCA))return;let origin='Direct';if(cl.vinted)origin='Vinted';else if(cl.etsy)origin='Etsy';else if(cl.lbc)origin='Le Bon Coin';else if(cl.insta)origin='Instagram';origins[origin]=(origins[origin]||0)+1;});}
   const maxO=Math.max(...Object.values(origins),1);
   const oColors={'Bouche-à-oreille':'var(--amber)','Instagram':'#bc2a8d','Vinted':'#2ecc71','Etsy':'#f56400','Le Bon Coin':'#ff6600','Salon / foire':'var(--purple)','Site web':'var(--resin)','Autre':'var(--text-dim)','Non renseigné':'var(--border)','Direct':'var(--amber)'};
   const unitLabel=withOrigin.length>0?'projet':'client';
@@ -4092,7 +4092,7 @@ function renderStats(){
   const produits={};
   accepted.forEach(d=>{const k=(d.name||'Autre').split(' ').slice(0,3).join(' ');produits[k]=(produits[k]||0)+devisTotal(d);});
   (state.clients||[]).forEach(cl=>{
-    (cl.transactions||[]).filter(txIsEncaissementRecu).forEach(t=>{
+    (cl.transactions||[]).filter(txEncaissementOrphelinPourCA).forEach(t=>{
       const raw=(t.desc||'Vente déclarée').trim()||'Vente déclarée';
       const k=raw.split(/\s+/).slice(0,3).join(' ');
       produits[k]=(produits[k]||0)+(t.amount||0);
@@ -4129,7 +4129,7 @@ function renderStats(){
   const caAnnee=caAnneeDevis+caAnneeTxCalc;
   const clientsAvecCA=new Set();
   accepted.forEach(d=>{if(d.clientId)clientsAvecCA.add('id:'+d.clientId);if(d.client)clientsAvecCA.add('n:'+String(d.client).trim());});
-  (state.clients||[]).forEach(cl=>{if((cl.transactions||[]).some(txIsEncaissementRecu))clientsAvecCA.add('id:'+cl.id);});
+  (state.clients||[]).forEach(cl=>{if((cl.transactions||[]).some(txEncaissementOrphelinPourCA))clientsAvecCA.add('id:'+cl.id);});
   const clientsActifs=clientsAvecCA.size;
   const nbEncRecus=countEncaissementsClientsRecus();
   const nbOperations=acc+nbEncRecus;
@@ -4138,7 +4138,7 @@ function renderStats(){
     <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
       <div class="client-info-row"><span class="client-info-label" style="width:150px">CA réalisé total</span><span style="font-family:DM Mono,monospace;color:var(--amber-light)">${fmtEur(caTotal)}</span></div>
       <div class="client-info-row"><span class="client-info-label" style="width:150px;text-transform:none;font-size:11px">↳ devis acceptés/fact.</span><span style="font-family:DM Mono,monospace;color:var(--text-dim)">${fmtEur(caDevisTotal)}</span></div>
-      <div class="client-info-row"><span class="client-info-label" style="width:150px;text-transform:none;font-size:11px">↳ fiches clients (reçu)</span><span style="font-family:DM Mono,monospace;color:var(--resin)">${fmtEur(caTxAll)}</span></div>
+      <div class="client-info-row"><span class="client-info-label" style="width:150px;text-transform:none;font-size:11px">↳ fiches clients (reçu, sans lien devis)</span><span style="font-family:DM Mono,monospace;color:var(--resin)">${fmtEur(caTxAll)}</span></div>
       <div class="client-info-row"><span class="client-info-label" style="width:150px">CA ${now.getFullYear()}</span><span style="font-family:DM Mono,monospace;color:var(--amber-light)">${fmtEur(caAnnee)}</span></div>
       <div class="client-info-row"><span class="client-info-label" style="width:150px">Clients avec vente</span><span style="font-family:DM Mono,monospace">${clientsActifs}</span></div>
       <div class="client-info-row"><span class="client-info-label" style="width:150px">Panier moyen global</span><span style="font-family:DM Mono,monospace">${panierGlobal!=null?fmtEur(panierGlobal):'—'}</span></div>
@@ -4745,6 +4745,33 @@ const TX_FLOW_LABELS = { total:'Total', acompte:'Acompte', solde:'Solde' };
 function txIsEncaissementRecu(t) {
   return (t.txStatus || 'recu') !== 'prevu';
 }
+/** Encaissement reçu compté en plus des devis (non lié à un devis) — évite double comptage CA */
+function txEncaissementOrphelinPourCA(t) {
+  if (!txIsEncaissementRecu(t)) return false;
+  return t.devisId == null || t.devisId === '';
+}
+
+function remplirSelectRattachementDevis(cl, selectedDevisId) {
+  const sel = document.getElementById('tx-devis-link');
+  if (!sel || !cl) return;
+  const fullName = ((cl.firstname || '') + ' ' + (cl.lastname || '')).trim();
+  sel.innerHTML = '<option value="">— Aucun — vente hors devis ou sans lien</option>';
+  const dvs = (state.devis || []).filter(d =>
+    (d.clientId === cl.id || (d.client || '').trim() === fullName) &&
+    (d.status === 'accepte' || d.status === 'facture')
+  );
+  function montantDevis(d) {
+    const sub = (d.lignes || []).reduce((s, l) => s + l.qty * l.price, 0);
+    return sub * (1 + (d.marginPct || 0) / 100);
+  }
+  dvs.forEach(d => {
+    const o = document.createElement('option');
+    o.value = String(d.id);
+    o.textContent = (d.ref || 'Sans ref') + ' — ' + (d.name || '') + ' (' + fmtEur(montantDevis(d)) + ')';
+    sel.appendChild(o);
+  });
+  sel.value = selectedDevisId != null && selectedDevisId !== '' ? String(selectedDevisId) : '';
+}
 
 function toggleTxEncaissementFields() {
   var st = document.getElementById('tx-status');
@@ -4769,6 +4796,7 @@ function openNewTransaction() {
   document.getElementById('tx-status').value = 'recu';
   document.getElementById('tx-flow').value = 'total';
   toggleTxEncaissementFields();
+  remplirSelectRattachementDevis(getCurrentClient(), null);
   openModal('modal-transaction');
 }
 
@@ -4786,6 +4814,7 @@ function openEditTransaction(idx) {
   document.getElementById('tx-status').value = tx.txStatus || 'recu';
   document.getElementById('tx-flow').value = tx.txFlow || 'total';
   toggleTxEncaissementFields();
+  remplirSelectRattachementDevis(cl, tx.devisId);
   openModal('modal-transaction');
 }
 
@@ -4806,6 +4835,11 @@ async function saveTransaction() {
     txStatus: document.getElementById('tx-status').value || 'recu',
     txFlow: document.getElementById('tx-flow').value || 'total'
   };
+  const linkSel = document.getElementById('tx-devis-link');
+  if (linkSel && linkSel.value) {
+    const did = parseInt(linkSel.value, 10);
+    if (!isNaN(did)) entry.devisId = did; else delete entry.devisId;
+  } else delete entry.devisId;
   if (state.editTxIdx >= 0) cl.transactions[state.editTxIdx] = entry;
   else cl.transactions.push(entry);
   cl.transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -4839,9 +4873,15 @@ function renderClientTransactions(cl) {
     const flowCls = flow === 'acompte' ? 'tx-flow-acompte' : flow === 'solde' ? 'tx-flow-solde' : 'tx-flow-total';
     const statusBadge = prevu ? '<span class="tx-badge-prevu">À venir</span>' : '<span class="tx-badge-flow" style="background:rgba(39,174,96,.2);color:var(--green);">Reçu</span>';
     const flowBadge = '<span class="tx-badge-flow ' + flowCls + '">' + esc(flowLab) + '</span>';
+    let devisLinkBadge = '';
+    if (tx.devisId != null && tx.devisId !== '') {
+      const dv = (state.devis || []).find(d => d.id === tx.devisId || String(d.id) === String(tx.devisId));
+      const ref = dv && (dv.ref || '') ? dv.ref : '#' + String(tx.devisId);
+      devisLinkBadge = ' <span class="tx-badge-flow" style="background:rgba(155,89,182,.18);color:var(--purple);" title="Rattaché à ce devis (CA non doublé)">↗ ' + esc(ref) + '</span>';
+    }
     return '<div class="transaction-item' + (prevu ? ' transaction-prevu' : '') + '">'
       + '<span class="transaction-date">' + dateStr + '</span>'
-      + '<span class="transaction-desc">' + statusBadge + flowBadge + esc(tx.desc || '—') + (tx.notes ? ' <span style="color:var(--text-dim);font-size:11px;">(' + esc(tx.notes) + ')</span>' : '') + '</span>'
+      + '<span class="transaction-desc">' + statusBadge + flowBadge + devisLinkBadge + esc(tx.desc || '—') + (tx.notes ? ' <span style="color:var(--text-dim);font-size:11px;">(' + esc(tx.notes) + ')</span>' : '') + '</span>'
       + '<span class="transaction-platform ' + platClass + '">' + platLabel + '</span>'
       + '<span class="transaction-amount">' + (prevu ? '' : '+') + fmtEur(tx.amount) + (prevu ? ' <span style="font-size:10px;color:var(--text-dim)">prévu</span>' : '') + '</span>'
       + '<div class="transaction-actions">'
@@ -4884,11 +4924,11 @@ function renderClientKPIs(cl) {
   const kpisEl = document.getElementById('cl-kpis');
   if (!kpisEl) return;
 
-  // From transactions
+  // From transactions (hors devis rattachés : le CA du devis compte déjà)
   const txs = cl.transactions || [];
-  const txRecus = txs.filter(txIsEncaissementRecu);
-  const txTotal = txRecus.reduce((s, t) => s + (t.amount || 0), 0);
-  const txCount = txRecus.length;
+  const txOrphelinsCA = txs.filter(txEncaissementOrphelinPourCA);
+  const txTotal = txOrphelinsCA.reduce((s, t) => s + (t.amount || 0), 0);
+  const txCount = txOrphelinsCA.length;
 
   // From accepted devis
   const devisClient = (state.devis || []).filter(d => d.clientId === cl.id || d.client === ((cl.firstname||'') + ' ' + (cl.lastname||'')).trim());
@@ -4900,19 +4940,19 @@ function renderClientKPIs(cl) {
   }, 0);
 
   const totalCA = txTotal + devisTotal;
-  const totalCommandes = txCount + devisAccepted.length;
+  const totalCommandes = devisAccepted.length + txCount;
   const panier = totalCommandes > 0 ? totalCA / totalCommandes : 0;
 
   // Last purchase date
   const allDates = [
-    ...txRecus.map(t => t.date),
+    ...txOrphelinsCA.map(t => t.date),
     ...devisAccepted.map(d => d.date)
   ].filter(Boolean).sort().reverse();
   const lastDate = allDates[0] ? new Date(allDates[0]).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'}) : '—';
 
   kpisEl.innerHTML = [
-    { val: fmtEur(totalCA), label: 'CA réalisé (devis + enc. reçus)' },
-    { val: totalCommandes, label: 'Commandes / enc. reçus' },
+    { val: fmtEur(totalCA), label: 'CA réalisé (devis + enc. hors lien)' },
+    { val: totalCommandes, label: 'Devis acceptés · enc. comptés' },
     { val: fmtEur(panier), label: 'Panier moyen' },
     { val: lastDate, label: 'Dernière date (devis / enc.)' }
   ].map(k => '<div class="client-kpi"><div class="client-kpi-val">' + k.val + '</div><div class="client-kpi-label">' + k.label + '</div></div>').join('');
@@ -4984,12 +5024,12 @@ function exportClientsExcel() {
 
   clients.forEach(cl => {
     const txs = cl.transactions || [];
-    const txTotal = txs.filter(txIsEncaissementRecu).reduce((s,t) => s+(t.amount||0), 0);
+    const txTotal = txs.filter(txEncaissementOrphelinPourCA).reduce((s,t) => s+(t.amount||0), 0);
     const fullName = ((cl.firstname||'')+' '+(cl.lastname||'')).trim();
     const devisAcc = (state.devis||[]).filter(d => (d.clientId===cl.id||d.client===fullName) && (d.status==='accepte'||d.status==='facture'));
     const devisTotal = devisAcc.reduce((s,d) => { const b=(d.lignes||[]).reduce((a,l)=>a+l.qty*l.price,0); return s+b*(1+(d.marginPct||0)/100); }, 0);
     const totalCA = txTotal + devisTotal;
-    const totalCmd = txs.length + devisAcc.length;
+    const totalCmd = devisAcc.length + txs.filter(txEncaissementOrphelinPourCA).length;
     const panier = totalCmd > 0 ? (totalCA/totalCmd).toFixed(2) : '0.00';
     const allDates = [...txs.map(t=>t.date),...devisAcc.map(d=>d.date)].filter(Boolean).sort().reverse();
     const lastDate = allDates[0] ? new Date(allDates[0]).toLocaleDateString('fr-FR') : '';
@@ -5009,7 +5049,7 @@ function exportClientsExcel() {
   rows.push('');
   rows.push('=== TRANSACTIONS ===');
   rows.push([
-    'CLIENT_ID','Prénom','Nom','Date','Montant (€)','Description','Plateforme','Paiement','Notes','Statut encaissement','Nature (acompte/solde/total)'
+    'CLIENT_ID','Prénom','Nom','Date','Montant (€)','Description','Plateforme','Paiement','Notes','Statut encaissement','Nature (acompte/solde/total)','Devis_ID'
   ].join(SEP));
 
   clients.forEach(cl => {
@@ -5017,12 +5057,13 @@ function exportClientsExcel() {
       const q = v => '"'+String(v||'').replace(/"/g,'""')+'"';
       const st = (tx.txStatus||'recu')==='prevu'?'prevu':'recu';
       const fl = tx.txFlow || 'total';
+      const did = tx.devisId != null && tx.devisId !== '' ? String(tx.devisId) : '';
       rows.push([
         cl.id, q(cl.firstname||''), q(cl.lastname||''),
         q(tx.date||''),
         (tx.amount||0).toFixed(2).replace('.',','),
         q(tx.desc||''), q(tx.platform||'direct'), q(tx.payment||''), q(tx.notes||''),
-        q(st), q(fl)
+        q(st), q(fl), did || q('')
       ].join(SEP));
     });
   });
@@ -5085,6 +5126,10 @@ function importClientsCSV(file) {
             };
             if (cols[9]) txRow.txStatus = (String(cols[9]).toLowerCase()==='prevu')?'prevu':'recu';
             if (cols[10]) txRow.txFlow = ['acompte','solde','total'].indexOf(String(cols[10]).toLowerCase())>=0 ? String(cols[10]).toLowerCase() : 'total';
+            if (cols[11] != null && String(cols[11]).trim() !== '') {
+              const did = parseInt(String(cols[11]).replace(/^"|"$/g,'').trim(), 10);
+              if (!isNaN(did)) txRow.devisId = did;
+            }
             cl.transactions.push(txRow);
           }
         }
@@ -5637,6 +5682,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     <div class="form-group">
       <label>Notes</label>
       <input type="text" id="tx-notes" placeholder="Acompte, solde, commentaire…">
+    </div>
+    <div class="form-group">
+      <label>Rattacher à un devis (optionnel)</label>
+      <select id="tx-devis-link"></select>
+      <p style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.45;">Si ce paiement correspond à un devis déjà accepté ou facturé, sélectionnez-le : le CA de ce devis ne sera pas additionné une deuxième fois aux totaux (sinon laissez « Aucun »).</p>
     </div>
     <div class="form-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-transaction')">Annuler</button>
